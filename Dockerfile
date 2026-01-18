@@ -17,14 +17,15 @@ COPY composer.json composer.lock* ./
 # Stage 2: Production stage
 FROM php:8.2-cli-alpine
 
-# Install system dependencies and development packages
+# Install system dependencies and development packages for PHP extensions
 RUN apk add --no-cache \
     curl \
     postgresql-dev \
     mysql-dev \
     $PHPIZE_DEPS \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql \
-    && apk del $PHPIZE_DEPS
+    && apk del $PHPIZE_DEPS \
+    && rm -rf /var/cache/apk/*
 
 # Set working directory
 WORKDIR /app
