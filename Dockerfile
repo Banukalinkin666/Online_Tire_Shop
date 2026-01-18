@@ -17,13 +17,14 @@ COPY composer.json composer.lock* ./
 # Stage 2: Production stage
 FROM php:8.2-cli-alpine
 
-# Install necessary PHP extensions for PDO and PostgreSQL
+# Install system dependencies and development packages
 RUN apk add --no-cache \
-    pdo \
-    pdo_pgsql \
-    pdo_mysql \
     curl \
-    && docker-php-ext-install pdo pdo_pgsql pdo_mysql
+    postgresql-dev \
+    mysql-dev \
+    $PHPIZE_DEPS \
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql \
+    && apk del $PHPIZE_DEPS
 
 # Set working directory
 WORKDIR /app
