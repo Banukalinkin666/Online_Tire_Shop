@@ -49,5 +49,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD php -r "file_get_contents('http://localhost:${PORT:-8000}/healthz.php') ? exit(0) : exit(1);" || exit 1
 
-# Start PHP built-in server
-CMD php -S 0.0.0.0:${PORT:-8000} -t public
+# Start PHP built-in server from root to access both public and api directories
+CMD php -S 0.0.0.0:${PORT:-8000} -t . router.php
