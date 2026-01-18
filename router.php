@@ -26,12 +26,18 @@ if ($uri === '/healthz.php' || $uri === '/healthz') {
     }
 }
 
-// Route public files to /public directory
+// Route public files to /public directory (CSS, JS, images, etc.)
 if (strpos($uri, '/assets/') === 0 || 
-    strpos($uri, '/import-schema.php') === 0) {
+    strpos($uri, '/import-schema.php') === 0 ||
+    preg_match('/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i', $uri)) {
     $file = __DIR__ . '/public' . $uri;
     if (file_exists($file) && is_file($file)) {
-        return false; // Serve the file
+        return false; // Serve the file directly
+    }
+    // If file doesn't exist, try without public prefix
+    $file = __DIR__ . $uri;
+    if (file_exists($file) && is_file($file)) {
+        return false;
     }
 }
 

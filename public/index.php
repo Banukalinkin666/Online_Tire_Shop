@@ -35,7 +35,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
     <title>Tire Fitment Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <script src="/assets/js/app.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
