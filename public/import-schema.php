@@ -95,16 +95,51 @@ header('Content-Type: text/html; charset=utf-8');
                     throw new Exception("Schema file is empty");
                 }
                 
-                // Split SQL by semicolons (basic approach)
+                // Split SQL by semicolons, but preserve dollar-quoted strings
                 // Remove comments and empty lines
                 $sql = preg_replace('/--.*$/m', '', $sql);
                 $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
-                $statements = array_filter(
-                    array_map('trim', explode(';', $sql)),
-                    function($stmt) {
-                        return !empty($stmt) && !preg_match('/^\s*(CREATE|DROP|INSERT|SELECT|UPDATE|DELETE|ALTER)\s+EXTENSION/i', $stmt);
+                
+                // Handle dollar-quoted strings (PostgreSQL functions)
+                // Split by semicolon, but keep multi-line statements together
+                $statements = [];
+                $currentStatement = '';
+                $inDollarQuote = false;
+                $dollarTag = '';
+                
+                $lines = explode("\n", $sql);
+                foreach ($lines as $line) {
+                    $currentStatement .= $line . "\n";
+                    
+                    // Check for dollar-quote start/end
+                    if (preg_match('/\$(\w*)\$/', $line, $matches)) {
+                        if (!$inDollarQuote) {
+                            $inDollarQuote = true;
+                            $dollarTag = $matches[0];
+                        } elseif ($matches[0] === $dollarTag) {
+                            $inDollarQuote = false;
+                            $dollarTag = '';
+                        }
                     }
-                );
+                    
+                    // If not in dollar quote and line ends with semicolon, split
+                    if (!$inDollarQuote && strpos(trim($line), ';') !== false) {
+                        $stmt = trim($currentStatement);
+                        if (!empty($stmt) && !preg_match('/^\s*(CREATE|DROP|INSERT|SELECT|UPDATE|DELETE|ALTER)\s+EXTENSION/i', $stmt)) {
+                            $statements[] = $stmt;
+                        }
+                        $currentStatement = '';
+                    }
+                }
+                
+                // Add remaining statement if any
+                if (!empty(trim($currentStatement))) {
+                    $statements[] = trim($currentStatement);
+                }
+                
+                $statements = array_filter($statements, function($stmt) {
+                    return !empty($stmt);
+                });
                 
                 $results = [];
                 $successCount = 0;

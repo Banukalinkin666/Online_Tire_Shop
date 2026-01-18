@@ -49,14 +49,14 @@ CREATE INDEX IF NOT EXISTS idx_brand ON tires(brand);
 CREATE INDEX IF NOT EXISTS idx_season ON tires(season);
 CREATE INDEX IF NOT EXISTS idx_stock ON tires(stock);
 
--- Create function to update updated_at timestamp
+-- Create function to update updated_at timestamp (using single quotes to avoid parsing issues)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $trigger$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$trigger$ LANGUAGE plpgsql;
 
 -- Create triggers to auto-update updated_at
 DROP TRIGGER IF EXISTS update_vehicle_fitment_updated_at ON vehicle_fitment;
