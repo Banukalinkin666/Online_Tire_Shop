@@ -18,6 +18,12 @@ if (file_exists(__DIR__ . '/../.env')) {
     }
 }
 
+// Handle health check before bootstrapping
+if ($_SERVER['REQUEST_URI'] === '/healthz.php' || $_SERVER['REQUEST_URI'] === '/healthz') {
+    require_once __DIR__ . '/healthz.php';
+    exit;
+}
+
 require_once __DIR__ . '/../app/bootstrap.php';
 
 ?>

@@ -45,9 +45,9 @@ USER appuser
 # Expose port (Render will set PORT env var)
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD php -r "file_get_contents('http://localhost:$PORT/healthz') || exit(1);" || exit 1
+# Health check - simplified to check if PHP server is responding
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD php -r "file_get_contents('http://localhost:${PORT:-8000}/healthz.php') ? exit(0) : exit(1);" || exit 1
 
 # Start PHP built-in server
 CMD php -S 0.0.0.0:${PORT:-8000} -t public
