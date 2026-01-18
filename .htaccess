@@ -1,0 +1,7 @@
+# Root .htaccess (for Render and other Apache servers)
+# This ensures proper routing if not using public/ as document root
+
+# Redirect to public directory if accessing root
+RewriteEngine On
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]

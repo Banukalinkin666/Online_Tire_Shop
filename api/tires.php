@@ -1,0 +1,70 @@
+<?php
+/**
+ * Tire Matching API Endpoint
+ * 
+ * GET /api/tires.php?year=2020&make=Toyota&model=Camry&trim=LE
+ */
+
+require_once __DIR__ . '/../app/bootstrap.php';
+
+use App\Services\TireMatchService;
+use App\Helpers\ResponseHelper;
+use App\Helpers\InputHelper;
+
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ResponseHelper::error('Method not allowed. Use GET.', 405);
+}
+
+// Get and validate parameters
+$year = InputHelper::sanitizeInt(InputHelper::get('year'));
+$make = InputHelper::sanitizeString(InputHelper::get('make'));
+$model = InputHelper::sanitizeString(InputHelper::get('model'));
+$trim = InputHelper::sanitizeString(InputHelper::get('trim'));
+
+// Validate required fields
+$errors = [];
+
+if (!$year) {
+    $errors[] = 'Year is required and must be a valid year (1900-2100)';
+}
+
+if (empty($make)) {
+    $errors[] = 'Make is required';
+}
+
+if (empty($model)) {
+    $errors[] = 'Model is required';
+}
+
+if (!empty($errors)) {
+    ResponseHelper::error('Validation failed', 400, $errors);
+}
+
+// Normalize trim (empty string becomes null)
+$trim = empty($trim) ? null : $trim;
+
+try {
+    $tireMatchService = new TireMatchService();
+    $result = $tireMatchService->getMatchingTires($year, $make, $model, $trim);
+
+    if (!$result['success']) {
+        ResponseHelper::error($result['message'], 404);
+    }
+
+    ResponseHelper::success($result);
+
+} catch (Exception $e) {
+    error_log("Tire matching error: " . $e->getMessage());
+    ResponseHelper::error('Failed to retrieve tire matches: ' . $e->getMessage(), 500);
+}

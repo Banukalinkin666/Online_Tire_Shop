@@ -1,0 +1,39 @@
+<?php
+/**
+ * Application Bootstrap
+ * 
+ * Autoloader and configuration setup
+ * WordPress-compatible: No output unless executed
+ */
+
+// Prevent direct access
+if (!defined('TIRESHOP_BOOTSTRAP_LOADED')) {
+    define('TIRESHOP_BOOTSTRAP_LOADED', true);
+}
+
+// Set error reporting (adjust for production)
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
+// Register autoloader
+spl_autoload_register(function ($className) {
+    // Remove leading backslash if present
+    $className = ltrim($className, '\\');
+    
+    // Check if this is our namespace
+    if (strpos($className, 'App\\') !== 0) {
+        return;
+    }
+    
+    // Convert namespace to file path
+    $className = str_replace('App\\', '', $className);
+    $className = str_replace('\\', DIRECTORY_SEPARATOR, $className);
+    
+    // Build full path
+    $filePath = __DIR__ . DIRECTORY_SEPARATOR . $className . '.php';
+    
+    if (file_exists($filePath)) {
+        require_once $filePath;
+    }
+});

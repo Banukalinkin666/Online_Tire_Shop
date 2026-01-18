@@ -1,0 +1,28 @@
+# PHP
+*.log
+*.cache
+vendor/
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+config/database.local.php
+
+# Temporary files
+*.tmp
+*.bak
+
+# Render
+.render/

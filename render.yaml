@@ -1,0 +1,35 @@
+# Render Blueprint
+# This file defines services for Render deployment
+# Learn more: https://render.com/docs/blueprint-spec
+
+services:
+  # Web Service for the PHP Application
+  - type: web
+    name: tire-fitment-finder
+    runtime: php
+    plan: free  # Change to 'starter' or 'standard' for production
+    region: oregon  # Change to your preferred region
+    buildCommand: ""  # No build needed for PHP
+    startCommand: php -S 0.0.0.0:$PORT -t public
+    envVars:
+      - key: PHP_VERSION
+        value: 8.2
+      # Database environment variables (set these in Render dashboard)
+      - key: DB_HOST
+        sync: false  # Set manually in Render dashboard
+      - key: DB_NAME
+        value: tire_shop
+      - key: DB_USER
+        sync: false  # Set manually in Render dashboard
+      - key: DB_PASS
+        sync: false  # Set manually in Render dashboard
+      - key: DB_PORT
+        value: "3306"  # Change to 5432 for PostgreSQL
+
+  # PostgreSQL Database (Optional - use if you want Render-managed database)
+  # Note: Requires SQL schema modifications for PostgreSQL compatibility
+  # - type: pspg
+  #   name: tire-fitment-db
+  #   plan: free
+  #   databaseName: tire_shop
+  #   user: tire_user

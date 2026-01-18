@@ -1,0 +1,28 @@
+# Apache configuration for Tire Fitment Application
+# Enable rewrite engine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirect to index.php for non-existent files
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    # Prevent clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # XSS Protection
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Content type sniffing protection
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+# PHP settings
+<IfModule mod_php8.c>
+    php_value display_errors 0
+    php_value log_errors 1
+</IfModule>
