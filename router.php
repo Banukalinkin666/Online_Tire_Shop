@@ -16,11 +16,19 @@ if (strpos($uri, '/api/') === 0) {
     }
 }
 
+// Route health check directly
+if ($uri === '/healthz.php' || $uri === '/healthz') {
+    $file = __DIR__ . '/public/healthz.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/healthz.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route public files to /public directory
 if (strpos($uri, '/assets/') === 0 || 
-    strpos($uri, '/import-schema.php') === 0 || 
-    strpos($uri, '/healthz.php') === 0 ||
-    strpos($uri, '/healthz') === 0) {
+    strpos($uri, '/import-schema.php') === 0) {
     $file = __DIR__ . '/public' . $uri;
     if (file_exists($file) && is_file($file)) {
         return false; // Serve the file

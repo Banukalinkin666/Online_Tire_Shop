@@ -4,8 +4,9 @@
  * Used by Docker and Render to verify service is running
  */
 
-header('Content-Type: application/json');
+// Simple health check - no database connection needed
 http_response_code(200);
+header('Content-Type: application/json');
 
 // Basic health check - can be extended to check database connection
 $status = [
