@@ -62,18 +62,36 @@ class Connection
         if (self::$instance === null) {
             $config = self::loadConfig();
             
-            // Build DSN with port if provided
-            $port = isset($config['port']) && !empty($config['port']) 
-                ? ';port=' . $config['port'] 
-                : '';
+            // Determine database type from environment or default to MySQL
+            $dbType = $_ENV['DB_TYPE'] ?? $_SERVER['DB_TYPE'] ?? $config['type'] ?? 'mysql';
             
-            $dsn = sprintf(
-                "mysql:host=%s%s;dbname=%s;charset=%s",
-                $config['host'],
-                $port,
-                $config['dbname'],
-                $config['charset']
-            );
+            // Build DSN based on database type
+            if ($dbType === 'pgsql' || $dbType === 'postgresql') {
+                // PostgreSQL connection
+                $port = isset($config['port']) && !empty($config['port']) 
+                    ? $config['port'] 
+                    : '5432';
+                
+                $dsn = sprintf(
+                    "pgsql:host=%s;port=%s;dbname=%s",
+                    $config['host'],
+                    $port,
+                    $config['dbname']
+                );
+            } else {
+                // MySQL connection (default)
+                $port = isset($config['port']) && !empty($config['port']) 
+                    ? ';port=' . $config['port'] 
+                    : '';
+                
+                $dsn = sprintf(
+                    "mysql:host=%s%s;dbname=%s;charset=%s",
+                    $config['host'],
+                    $port,
+                    $config['dbname'],
+                    $config['charset']
+                );
+            }
 
             try {
                 self::$instance = new PDO(

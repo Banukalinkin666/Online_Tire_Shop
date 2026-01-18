@@ -39,7 +39,27 @@ If it says "This directory does not appear to be a Git repository":
 
 ## Step 2: Set Up Database (3 minutes)
 
-### Option A: PlanetScale (Free MySQL - Recommended)
+### Option A: Render PostgreSQL (Easiest - All in Render!) ⭐
+
+1. In Render dashboard, click **"New +"** → **"PostgreSQL"**
+2. Configure:
+   - **Name**: `tire-fitment-db`
+   - **Database**: `tire_shop` ⚠️ Type this exactly!
+   - **Region**: `Oregon` (or closest)
+   - **Plan**: `Free`
+3. Click **"Create Database"**
+4. Wait 1-2 minutes, then click on your database
+5. Click **"Shell"** tab
+6. Open file `sql/schema_postgresql.sql` (NOT schema.sql!)
+7. Copy all SQL and paste into Shell, press Enter
+8. Note connection details:
+   - Host (from Connection Info)
+   - Database: `tire_shop`
+   - User and Password (click "Show")
+
+**✅ Database ready! Use DB_TYPE=pgsql in Step 3.3**
+
+### Option B: PlanetScale (Free MySQL - External)
 
 1. Go to https://planetscale.com and sign up (free)
 2. Click **"Create database"**
@@ -47,23 +67,19 @@ If it says "This directory does not appear to be a Git repository":
 4. Region: Choose closest to you
 5. Click **"Create database"**
 6. Go to **"Console"** tab
-7. Copy the contents of `F:\Online_Tire_Shop\sql\schema.sql`
+7. Copy the contents of `sql/schema.sql` (MySQL version)
 8. Paste into SQL console and click **"Run"**
 9. Go to **"Settings"** → **"Passwords"** → Click **"New password"**
-10. Copy the connection details:
-    - **Host**: Something like `xxx.us-east-1.psdb.cloud`
-    - **Database**: `tire_shop`
-    - **Username**: Your username
-    - **Password**: The password you just created
-    - **Port**: `3306`
+10. Copy the connection details
 
-**Save these details! You'll need them in Step 4.**
+**Use DB_TYPE=mysql in Step 3.3**
 
-### Option B: Your Existing MySQL
+### Option C: Your Existing MySQL
 
-1. Import `sql/schema.sql` into your database using phpMyAdmin or MySQL Workbench
-2. Note down connection details:
-   - Host, Database name, Username, Password, Port (usually 3306)
+1. Import `sql/schema.sql` into your database
+2. Note down connection details
+
+**Use DB_TYPE=mysql in Step 3.3**
 
 ---
 
@@ -109,20 +125,21 @@ This is important! Scroll down to **"Environment Variables"** section:
 
 Click **"Add Environment Variable"** for each of these:
 
-1. **Name**: `DB_HOST`
-   **Value**: Your database host (e.g., `xxx.us-east-1.psdb.cloud`)
+**For Render PostgreSQL (Option A):**
+1. **Name**: `DB_TYPE` → **Value**: `pgsql` ⚠️ Important!
+2. **Name**: `DB_HOST` → **Value**: Your Render database host (no port)
+3. **Name**: `DB_NAME` → **Value**: `tire_shop`
+4. **Name**: `DB_USER` → **Value**: Your Render database username
+5. **Name**: `DB_PASS` → **Value**: Your Render database password
+6. **Name**: `DB_PORT` → **Value**: `5432`
 
-2. **Name**: `DB_NAME`
-   **Value**: `tire_shop`
-
-3. **Name**: `DB_USER`
-   **Value**: Your database username
-
-4. **Name**: `DB_PASS`
-   **Value**: Your database password
-
-5. **Name**: `DB_PORT`
-   **Value**: `3306` (or `5432` if using PostgreSQL)
+**For MySQL (Option B or C):**
+1. **Name**: `DB_TYPE` → **Value**: `mysql`
+2. **Name**: `DB_HOST` → **Value**: Your database host
+3. **Name**: `DB_NAME` → **Value**: `tire_shop`
+4. **Name**: `DB_USER` → **Value**: Your database username
+5. **Name**: `DB_PASS` → **Value**: Your database password
+6. **Name**: `DB_PORT` → **Value**: `3306`
 
 **Double-check all 5 variables are added!**
 

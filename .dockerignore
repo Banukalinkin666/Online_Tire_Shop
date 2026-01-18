@@ -1,0 +1,48 @@
+# Docker ignore file
+# Files and directories to exclude from Docker build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+vendor/
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Render
+.render/
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# WordPress plugin (not needed in Docker)
+wordpress-plugin.php
+
+# Setup scripts (not needed in production)
+setup-verify.php
