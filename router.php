@@ -8,9 +8,11 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // Route API requests to /api directory
 if (strpos($uri, '/api/') === 0) {
-    $file = __DIR__ . $uri;
+    $file = __DIR__ . '/api' . substr($uri, 4); // Remove '/api' prefix and add '/api' directory
     if (file_exists($file) && is_file($file)) {
-        return false; // Serve the file
+        $_SERVER['SCRIPT_NAME'] = $uri;
+        require $file;
+        return true;
     }
 }
 
