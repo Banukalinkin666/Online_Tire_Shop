@@ -5,7 +5,9 @@
  * GET /api/tires.php?year=2020&make=Toyota&model=Camry&trim=LE
  */
 
-// Suppress any output before JSON (prevents HTML errors from breaking JSON)
+// Suppress ALL output and errors before JSON
+error_reporting(0);
+ini_set('display_errors', '0');
 ob_start();
 
 require_once __DIR__ . '/../app/bootstrap.php';
@@ -15,8 +17,8 @@ use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
 use PDOException;
 
-// Clear any output buffer and set JSON headers
-ob_clean();
+// Clear ALL output buffer and set JSON headers
+ob_end_clean();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
@@ -82,9 +84,24 @@ try {
 } catch (PDOException $e) {
     error_log("Tire matching database error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
+    // Ensure no output before JSON
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     ResponseHelper::error('Database error: Unable to retrieve tire matches. Please try again later.', 500);
 } catch (Exception $e) {
     error_log("Tire matching error: " . $e->getMessage());
     error_log("Stack trace: " . $e->getTraceAsString());
+    // Ensure no output before JSON
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     ResponseHelper::error('Failed to retrieve tire matches: ' . $e->getMessage(), 500);
+} catch (Throwable $e) {
+    error_log("Fatal error: " . $e->getMessage());
+    // Ensure no output before JSON
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    ResponseHelper::error('An unexpected error occurred. Please try again later.', 500);
 }

@@ -6,7 +6,9 @@
  * Body: { "vin": "1HGBH41JXMN109186" }
  */
 
-// Suppress any output before JSON (prevents HTML errors from breaking JSON)
+// Suppress ALL output and errors before JSON
+error_reporting(0);
+ini_set('display_errors', '0');
 ob_start();
 
 require_once __DIR__ . '/../app/bootstrap.php';
@@ -17,8 +19,8 @@ use App\Services\AITireSizeService;
 use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
 
-// Clear any output buffer and set JSON headers
-ob_clean();
+// Clear ALL output buffer and set JSON headers
+ob_end_clean();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
