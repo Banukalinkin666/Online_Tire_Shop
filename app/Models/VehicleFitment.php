@@ -146,13 +146,24 @@ class VehicleFitment
      */
     public function addFitment(array $data): bool
     {
+        // Check if vehicle already exists first
+        $existing = $this->getFitment(
+            (int)$data['year'],
+            $data['make'],
+            $data['model'],
+            !empty($data['trim']) ? $data['trim'] : null
+        );
+        
+        if ($existing) {
+            return false; // Already exists
+        }
+        
         $sql = "INSERT INTO vehicle_fitment (year, make, model, trim, front_tire, rear_tire, notes) 
-                VALUES (:year, :make, :model, :trim, :front_tire, :rear_tire, :notes)
-                ON CONFLICT DO NOTHING";
+                VALUES (:year, :make, :model, :trim, :front_tire, :rear_tire, :notes)";
         
         $stmt = $this->db->prepare($sql);
         
-        return $stmt->execute([
+        $result = $stmt->execute([
             ':year' => (int)$data['year'],
             ':make' => trim($data['make']),
             ':model' => trim($data['model']),
@@ -161,6 +172,8 @@ class VehicleFitment
             ':rear_tire' => !empty($data['rear_tire']) ? trim($data['rear_tire']) : null,
             ':notes' => $data['notes'] ?? 'User added vehicle'
         ]);
+        
+        return $result && $stmt->rowCount() > 0;
     }
 
     /**
