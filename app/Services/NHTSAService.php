@@ -75,7 +75,10 @@ class NHTSAService
         $vehicleInfo = $this->parseResults($data['Results']);
 
         if (empty($vehicleInfo['make']) || empty($vehicleInfo['model']) || empty($vehicleInfo['year'])) {
-            throw new Exception("Unable to decode complete vehicle information from VIN");
+            // Log the actual response for debugging
+            error_log("NHTSA API Response: " . json_encode($data['Results'], JSON_PRETTY_PRINT));
+            error_log("Parsed vehicle info: " . json_encode($vehicleInfo, JSON_PRETTY_PRINT));
+            throw new Exception("Unable to decode complete vehicle information from VIN. Make: " . ($vehicleInfo['make'] ?: 'missing') . ", Model: " . ($vehicleInfo['model'] ?: 'missing') . ", Year: " . ($vehicleInfo['year'] ?: 'missing'));
         }
 
         return $vehicleInfo;

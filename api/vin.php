@@ -75,5 +75,12 @@ try {
 
 } catch (Exception $e) {
     error_log("VIN decode error: " . $e->getMessage());
-    ResponseHelper::error('Failed to decode VIN: ' . $e->getMessage(), 500);
+    error_log("VIN decode stack trace: " . $e->getTraceAsString());
+    
+    // Check if it's a cURL error
+    if (strpos($e->getMessage(), 'curl') !== false || strpos($e->getMessage(), 'API request failed') !== false) {
+        ResponseHelper::error('Network error: Unable to connect to VIN decoding service. Please try again later or use Year/Make/Model search instead.', 503);
+    } else {
+        ResponseHelper::error('Failed to decode VIN: ' . $e->getMessage(), 500);
+    }
 }
