@@ -60,7 +60,16 @@ try {
     $result = $tireMatchService->getMatchingTires($year, $make, $model, $trim);
 
     if (!$result['success']) {
-        ResponseHelper::error($result['message'], 404);
+        // Return vehicle info so frontend can offer to add it
+        ResponseHelper::error($result['message'], 404, [
+            'vehicle_not_found' => true,
+            'vehicle' => [
+                'year' => $year,
+                'make' => $make,
+                'model' => $model,
+                'trim' => $trim
+            ]
+        ]);
     }
 
     ResponseHelper::success($result);

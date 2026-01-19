@@ -10,6 +10,8 @@ function tireFitmentApp() {
         loading: false,
         showResults: false,
         errorMessage: '',
+        showAddVehicleForm: false,
+        vehicleToAdd: null,
         
         // VIN search
         vinInput: '',
@@ -190,7 +192,13 @@ function tireFitmentApp() {
                 const vinData = await vinResponse.json();
                 
                 if (!vinData.success) {
-                    this.errorMessage = vinData.message || 'Failed to decode VIN.';
+                    // Check if it's a VIN validation error
+                    if (vinData.message && vinData.message.includes('not valid')) {
+                        this.errorMessage = 'Entered VIN is not valid. Please check the VIN and try again.';
+                    } else {
+                        this.errorMessage = vinData.message || 'Failed to decode VIN. Please verify the VIN is correct or use Year/Make/Model search instead.';
+                    }
+                    this.showAddVehicleForm = false;
                     return;
                 }
                 
@@ -212,7 +220,22 @@ function tireFitmentApp() {
                 const tiresData = await tiresResponse.json();
                 
                 if (!tiresData.success) {
-                    this.errorMessage = tiresData.message || 'Failed to find tire matches.';
+                    // Check if vehicle not found in database
+                    if (tiresData.errors && tiresData.errors.vehicle_not_found) {
+                        this.errorMessage = 'Vehicle not available in database.';
+                        this.vehicleToAdd = {
+                            year: vehicle.year,
+                            make: vehicle.make,
+                            model: vehicle.model,
+                            trim: trimToUse || null,
+                            body_class: vehicle.body_class || '',
+                            drive_type: vehicle.drive_type || ''
+                        };
+                        this.showAddVehicleForm = true;
+                    } else {
+                        this.errorMessage = tiresData.message || 'Failed to find tire matches.';
+                        this.showAddVehicleForm = false;
+                    }
                     return;
                 }
                 

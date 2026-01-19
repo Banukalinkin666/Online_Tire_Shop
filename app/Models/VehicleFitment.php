@@ -139,6 +139,31 @@ class VehicleFitment
     }
 
     /**
+     * Add a new vehicle fitment to the database
+     * 
+     * @param array $data Vehicle fitment data
+     * @return bool Success status
+     */
+    public function addFitment(array $data): bool
+    {
+        $sql = "INSERT INTO vehicle_fitment (year, make, model, trim, front_tire, rear_tire, notes) 
+                VALUES (:year, :make, :model, :trim, :front_tire, :rear_tire, :notes)
+                ON CONFLICT DO NOTHING";
+        
+        $stmt = $this->db->prepare($sql);
+        
+        return $stmt->execute([
+            ':year' => (int)$data['year'],
+            ':make' => trim($data['make']),
+            ':model' => trim($data['model']),
+            ':trim' => !empty($data['trim']) ? trim($data['trim']) : null,
+            ':front_tire' => trim($data['front_tire']),
+            ':rear_tire' => !empty($data['rear_tire']) ? trim($data['rear_tire']) : null,
+            ':notes' => $data['notes'] ?? 'User added vehicle'
+        ]);
+    }
+
+    /**
      * Get all available years
      * 
      * @return array

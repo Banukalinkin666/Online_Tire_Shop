@@ -42,7 +42,7 @@ if (empty($vin)) {
 }
 
 if (!InputHelper::validateVIN($vin)) {
-    ResponseHelper::error('Invalid VIN format. VIN must be exactly 17 alphanumeric characters.');
+    ResponseHelper::error('Entered VIN is not valid. VIN must be exactly 17 alphanumeric characters (no I, O, or Q).', 400);
 }
 
 try {
@@ -77,10 +77,24 @@ try {
     error_log("VIN decode error: " . $e->getMessage());
     error_log("VIN decode stack trace: " . $e->getTraceAsString());
     
-    // Check if it's a cURL error
-    if (strpos($e->getMessage(), 'curl') !== false || strpos($e->getMessage(), 'API request failed') !== false) {
-        ResponseHelper::error('Network error: Unable to connect to VIN decoding service. Please try again later or use Year/Make/Model search instead.', 503);
-    } else {
-        ResponseHelper::error('Failed to decode VIN: ' . $e->getMessage(), 500);
+    // Check for specific error types
+    $message = $e->getMessage();
+    
+    // Invalid VIN format errors
+    if (strpos($message, 'Invalid VIN') !== false || strpos($message, 'VIN contains invalid') !== false) {
+        ResponseHelper::error('Entered VIN is not valid. Please check the VIN and try again.', 400);
     }
+    
+    // Network/API errors
+    if (strpos($message, 'curl') !== false || strpos($message, 'API request failed') !== false) {
+        ResponseHelper::error('Network error: Unable to connect to VIN decoding service. Please try again later or use Year/Make/Model search instead.', 503);
+    }
+    
+    // Unable to decode (vehicle not in NHTSA database)
+    if (strpos($message, 'Unable to decode') !== false || strpos($message, 'missing') !== false) {
+        ResponseHelper::error('Unable to decode VIN. This VIN may not be in the NHTSA database. Please try using Year/Make/Model search instead.', 404);
+    }
+    
+    // Generic error
+    ResponseHelper::error('Failed to decode VIN. Please verify the VIN is correct or use Year/Make/Model search instead.', 500);
 }
