@@ -191,6 +191,9 @@ function tireFitmentApp() {
                 
                 const vinData = await vinResponse.json();
                 
+                // Debug: Log the response to see what we're getting
+                console.log('VIN API Response:', vinData);
+                
                 if (!vinData.success) {
                     // Check if it's a VIN validation error
                     if (vinData.message && vinData.message.includes('not valid')) {
@@ -207,6 +210,9 @@ function tireFitmentApp() {
                 const vehicle = vinData.data.vehicle;
                 const trims = vinData.data.trims || [];
                 const aiTireSizes = vinData.data.tire_sizes || null;
+                
+                // Debug: Log AI tire sizes
+                console.log('AI Tire Sizes from API:', aiTireSizes);
                 
                 // If AI provided tire sizes, show them immediately
                 if (aiTireSizes) {

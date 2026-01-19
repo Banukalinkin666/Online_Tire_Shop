@@ -64,8 +64,9 @@ try {
     $aiTireSizes = null;
     $tireSizesSource = 'database';
     
-    if ($aiTireService->isAvailable()) {
-        try {
+    // Always try AI, even if not configured (will return null gracefully)
+    try {
+        if ($aiTireService->isAvailable()) {
             $aiTireSizes = $aiTireService->getTireSizesFromAI(
                 $vehicleInfo['year'],
                 $vehicleInfo['make'],
@@ -75,13 +76,19 @@ try {
                 $vehicleInfo['drive_type'] ?? null
             );
             
-            if ($aiTireSizes) {
+            if ($aiTireSizes && isset($aiTireSizes['front_tire'])) {
                 $tireSizesSource = $aiTireSizes['source'] ?? 'ai';
+                error_log("AI tire sizes found: Front=" . $aiTireSizes['front_tire'] . ", Rear=" . ($aiTireSizes['rear_tire'] ?? 'null'));
+            } else {
+                error_log("AI service available but returned no tire sizes");
             }
-        } catch (Exception $e) {
-            // AI failed, but continue with database lookup
-            error_log("AI tire size lookup failed: " . $e->getMessage());
+        } else {
+            error_log("AI service not available (API key not configured)");
         }
+    } catch (Exception $e) {
+        // AI failed, but continue with database lookup
+        error_log("AI tire size lookup failed: " . $e->getMessage());
+        error_log("AI error stack trace: " . $e->getTraceAsString());
     }
 
     // Return vehicle info with available trims and AI tire sizes
@@ -100,14 +107,17 @@ try {
     ];
     
     // Add AI tire sizes if available
-    if ($aiTireSizes) {
+    if ($aiTireSizes && isset($aiTireSizes['front_tire']) && !empty($aiTireSizes['front_tire'])) {
         $responseData['tire_sizes'] = [
             'front_tire' => $aiTireSizes['front_tire'],
-            'rear_tire' => $aiTireSizes['rear_tire'],
+            'rear_tire' => $aiTireSizes['rear_tire'] ?? null,
             'source' => $tireSizesSource,
             'is_staggered' => !empty($aiTireSizes['rear_tire']) && $aiTireSizes['front_tire'] !== $aiTireSizes['rear_tire']
         ];
         $responseData['message'] = 'VIN decoded successfully. Tire sizes determined using AI.';
+        error_log("Including AI tire sizes in response: " . json_encode($responseData['tire_sizes']));
+    } else {
+        error_log("Not including AI tire sizes - aiTireSizes=" . ($aiTireSizes ? json_encode($aiTireSizes) : 'null'));
     }
     
     ResponseHelper::success($responseData);
