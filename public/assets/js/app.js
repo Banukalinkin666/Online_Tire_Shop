@@ -283,7 +283,7 @@ function tireFitmentApp() {
                     // Check if vehicle not found in database
                     if (tiresData.errors && tiresData.errors.vehicle_not_found) {
                         this.errorMessage = '';
-                        // Pre-fill vehicle info from VIN decode
+                        // Pre-fill vehicle info from VIN decode, including AI tire sizes if available
                         this.vehicleToAdd = {
                             year: vehicle.year,
                             make: vehicle.make,
@@ -291,8 +291,10 @@ function tireFitmentApp() {
                             trim: trimToUse || null,
                             body_class: vehicle.body_class || '',
                             drive_type: vehicle.drive_type || '',
-                            front_tire: '',
-                            rear_tire: ''
+                            front_tire: aiTireSizes ? (aiTireSizes.front_tire || '') : '',
+                            rear_tire: aiTireSizes ? (aiTireSizes.rear_tire || '') : '',
+                            ai_front_tire: aiTireSizes ? aiTireSizes.front_tire : null,
+                            ai_rear_tire: aiTireSizes ? aiTireSizes.rear_tire : null
                         };
                         this.showAddVehicleForm = true;
                     } else {
