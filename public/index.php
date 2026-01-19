@@ -225,7 +225,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <input 
                                 type="text" 
                                 id="front_tire"
-                                x-model="vehicleToAdd.front_tire"
+                                x-model="vehicleToAdd ? vehicleToAdd.front_tire : ''"
                                 placeholder="e.g., 215/55R17"
                                 pattern="\d{3}/\d{2}R\d{2}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
@@ -244,7 +244,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <input 
                                 type="text" 
                                 id="rear_tire"
-                                x-model="vehicleToAdd.rear_tire"
+                                x-model="vehicleToAdd ? vehicleToAdd.rear_tire : ''"
                                 placeholder="Leave blank if same as front"
                                 pattern="\d{3}/\d{2}R\d{2}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -255,7 +255,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                         <div class="flex gap-2">
                             <button 
                                 @click="addVehicleToDatabase()"
-                                :disabled="loading || !vehicleToAdd.front_tire"
+                                :disabled="loading || !vehicleToAdd || !vehicleToAdd.front_tire"
                                 class="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
                             >
                                 <span x-show="!loading">✓ Add Vehicle & Continue</span>

@@ -11,7 +11,7 @@ function tireFitmentApp() {
         showResults: false,
         errorMessage: '',
         showAddVehicleForm: false,
-        vehicleToAdd: null,
+        vehicleToAdd: null, // Will be initialized when needed
         
         // VIN search
         vinInput: '',
@@ -475,6 +475,11 @@ function tireFitmentApp() {
             this.showAddVehicleForm = false;
             this.vehicleToAdd = null;
             this.errorMessage = '';
+        },
+        
+        // Safe getter for vehicleToAdd properties
+        getVehicleProperty(property, defaultValue = '') {
+            return (this.vehicleToAdd && this.vehicleToAdd[property]) ? this.vehicleToAdd[property] : defaultValue;
         },
         
         // Request quote (placeholder - integrate with your quote system)
