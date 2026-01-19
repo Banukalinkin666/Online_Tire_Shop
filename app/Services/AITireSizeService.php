@@ -17,7 +17,8 @@ class AITireSizeService
 {
     // Try v1 endpoint first, fallback to v1beta if needed
     private const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
-    private const GEMINI_MODEL = 'gemini-1.5-flash'; // Try this model first
+    // Try these models in order
+    private const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro'];
     private const HUGGINGFACE_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
     
     private ?string $geminiKey;
@@ -100,50 +101,12 @@ If different front and rear sizes (staggered), provide both. If same, provide on
 Respond in JSON only: {\"front_tire\": \"225/65R17\", \"rear_tire\": \"225/65R17\" or null if same}
 No additional text, only valid JSON.";
         
-        // Try v1 endpoint first, fallback to v1beta if v1 fails
-        $url = self::GEMINI_API_BASE . '/v1/models/' . self::GEMINI_MODEL . ':generateContent?key=' . urlencode($this->geminiKey);
-        
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json'
-            ],
-            CURLOPT_POSTFIELDS => json_encode([
-                'contents' => [
-                    [
-                        'parts' => [
-                            [
-                                'text' => $prompt
-                            ]
-                        ]
-                    ]
-                ],
-                'generationConfig' => [
-                    'temperature' => 0.3,
-                    'maxOutputTokens' => 150
-                ]
-            ]),
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_CONNECTTIMEOUT => 5
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-        
-        if ($error) {
-            error_log("Gemini API cURL error: " . $error);
-            throw new Exception("Gemini API request failed: " . $error);
-        }
-        
-        // If v1 fails with 404, try v1beta as fallback
-        if ($httpCode === 404) {
-            error_log("Gemini API v1 returned 404, trying v1beta...");
-            $url = self::GEMINI_API_BASE . '/v1beta/models/' . self::GEMINI_MODEL . ':generateContent?key=' . urlencode($this->geminiKey);
+        // Try different models and endpoints until one works
+        $lastError = null;
+        foreach (self::GEMINI_MODELS as $model) {
+            // Try v1 endpoint first
+            $url = self::GEMINI_API_BASE . '/v1/models/' . $model . ':generateContent?key=' . urlencode($this->geminiKey);
+            error_log("Trying Gemini model: $model with v1 endpoint");
             
             $ch = curl_init();
             curl_setopt_array($ch, [
@@ -178,15 +141,71 @@ No additional text, only valid JSON.";
             curl_close($ch);
             
             if ($error) {
-                error_log("Gemini API v1beta cURL error: " . $error);
-                throw new Exception("Gemini API request failed: " . $error);
+                $lastError = "cURL error: " . $error;
+                continue; // Try next model
             }
+            
+            if ($httpCode === 200) {
+                error_log("✓ Gemini API success with model: $model (v1)");
+                break; // Success!
+            } elseif ($httpCode === 404) {
+                // Try v1beta for this model
+                error_log("Model $model not found in v1, trying v1beta...");
+                $url = self::GEMINI_API_BASE . '/v1beta/models/' . $model . ':generateContent?key=' . urlencode($this->geminiKey);
+                
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => $url,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json'
+                    ],
+                    CURLOPT_POSTFIELDS => json_encode([
+                        'contents' => [
+                            [
+                                'parts' => [
+                                    [
+                                        'text' => $prompt
+                                    ]
+                                ]
+                            ]
+                        ],
+                        'generationConfig' => [
+                            'temperature' => 0.3,
+                            'maxOutputTokens' => 150
+                        ]
+                    ]),
+                    CURLOPT_TIMEOUT => 10,
+                    CURLOPT_CONNECTTIMEOUT => 5
+                ]);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                curl_close($ch);
+                
+                if ($error) {
+                    $lastError = "cURL error: " . $error;
+                    continue; // Try next model
+                }
+                
+                if ($httpCode === 200) {
+                    error_log("✓ Gemini API success with model: $model (v1beta)");
+                    break; // Success!
+                }
+            }
+            
+            $lastError = "HTTP $httpCode: " . substr($response, 0, 200);
+            error_log("Model $model failed: $lastError");
         }
         
+        // If we get here, all models failed
         if ($httpCode !== 200) {
-            error_log("Gemini API HTTP error: Code=" . $httpCode . ", Response=" . substr($response, 0, 500));
-            throw new Exception("Gemini API returned HTTP code: " . $httpCode . " - Response: " . substr($response, 0, 200));
+            error_log("All Gemini models failed. Last error: $lastError");
+            throw new Exception("Gemini API returned HTTP code: " . $httpCode . " - " . $lastError);
         }
+        
         
         error_log("Gemini API success: HTTP " . $httpCode . ", Response length: " . strlen($response));
         
