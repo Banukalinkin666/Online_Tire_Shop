@@ -1,6 +1,6 @@
-# AI Tire Size Detection Setup Guide
+# AI Tire Size Detection Setup Guide (FREE VERSION)
 
-This guide explains how to set up AI-powered tire size detection from VIN numbers.
+This guide explains how to set up **FREE** AI-powered tire size detection from VIN numbers.
 
 ---
 
@@ -12,65 +12,53 @@ This guide explains how to set up AI-powered tire size detection from VIN number
 3. System searches database for vehicle → Gets tire sizes
 4. If vehicle not in database → User must manually enter tire sizes
 
-### New Flow (With AI)
+### New Flow (With AI - FREE)
 1. User enters VIN
 2. System decodes VIN → Gets Year/Make/Model
-3. **AI determines tire sizes** → Shows tire sizes immediately
+3. **AI determines tire sizes (FREE)** → Shows tire sizes immediately
 4. System searches database for matching tires
 5. If vehicle not in database → Pre-fills form with AI tire sizes
 
 ---
 
-## Supported AI Providers
+## Supported AI Provider (FREE)
 
-### 1. OpenAI (GPT-3.5/GPT-4)
-- **API:** OpenAI Chat Completions API
-- **Model:** gpt-3.5-turbo (default, can be changed)
-- **Cost:** ~$0.001-0.002 per request
+### Google Gemini (FREE Tier)
+- **API:** Google Gemini API
+- **Model:** gemini-pro (FREE)
+- **Cost:** **$0.00** - Completely FREE!
+- **Free Tier:** 15 requests per minute, 1500 requests per day
 - **Speed:** Fast (~1-2 seconds)
-
-### 2. Anthropic Claude
-- **API:** Anthropic Messages API
-- **Model:** claude-3-haiku-20240307
-- **Cost:** ~$0.00025 per request
-- **Speed:** Fast (~1-2 seconds)
+- **No Credit Card Required:** For free tier
 
 ---
 
-## Setup Instructions
+## Setup Instructions (FREE)
 
-### Option 1: OpenAI (Recommended)
+### Google Gemini (FREE - No Credit Card Required)
 
-1. **Get API Key**
-   - Go to https://platform.openai.com/api-keys
-   - Create a new API key
-   - Copy the key
+1. **Get FREE API Key**
+   - Go to https://makersuite.google.com/app/apikey
+   - Sign in with Google account (free)
+   - Click "Create API Key"
+   - Copy the key (starts with `AIza...`)
 
 2. **Add to Render Environment Variables**
    - Go to Render → Your Web Service → Environment
-   - Add: `OPENAI_API_KEY` = `sk-...` (your API key)
+   - Add: `GEMINI_API_KEY` = `AIza...` (your free API key)
    - Save changes
 
 3. **Test**
    - Enter a VIN
-   - System will automatically use AI to detect tire sizes
+   - System will automatically use FREE AI to detect tire sizes
    - Tire sizes will be pre-filled in the form
+   - **No charges!** Completely free!
 
-### Option 2: Anthropic Claude
-
-1. **Get API Key**
-   - Go to https://console.anthropic.com/
-   - Create a new API key
-   - Copy the key
-
-2. **Add to Render Environment Variables**
-   - Go to Render → Your Web Service → Environment
-   - Add: `ANTHROPIC_API_KEY` = `sk-ant-...` (your API key)
-   - Save changes
-
-3. **Test**
-   - Enter a VIN
-   - System will use Claude if OpenAI is not available
+### Free Tier Limits
+- **15 requests per minute**
+- **1,500 requests per day**
+- Perfect for most tire shops!
+- If you need more, upgrade to paid tier (still very cheap)
 
 ---
 
@@ -130,17 +118,16 @@ $aiTireSizes = $aiTireService->getTireSizesFromAI(
 
 ## Cost Estimation
 
-### OpenAI GPT-3.5-turbo
-- **Per request:** ~$0.001-0.002
-- **1000 requests:** ~$1-2
-- **10,000 requests:** ~$10-20
+### Google Gemini (FREE Tier)
+- **Per request:** **$0.00** (FREE!)
+- **1000 requests:** **$0.00** (FREE!)
+- **10,000 requests:** **$0.00** (FREE!)
+- **Daily limit:** 1,500 requests (FREE)
+- **Rate limit:** 15 requests/minute (FREE)
 
-### Anthropic Claude Haiku
-- **Per request:** ~$0.00025
-- **1000 requests:** ~$0.25
-- **10,000 requests:** ~$2.50
+**Cost:** **$0.00** - Completely FREE! No credit card needed for free tier!
 
-**Recommendation:** Start with OpenAI (more reliable), or use Claude for lower costs.
+**If you exceed free tier:** Paid tier is ~$0.00025 per request (very cheap)
 
 ---
 
@@ -171,10 +158,11 @@ $aiTireSizes = $aiTireService->getTireSizesFromAI(
 ## Troubleshooting
 
 ### AI Not Working
-- Check API key is set correctly
-- Check API key has credits/balance
+- Check `GEMINI_API_KEY` is set correctly in Render
+- Check API key is valid (starts with `AIza...`)
 - Check error logs in Render
 - Verify cURL extension is enabled
+- Check if you've exceeded free tier limits (15/min, 1500/day)
 
 ### Wrong Tire Sizes
 - AI may occasionally return incorrect sizes
@@ -190,14 +178,22 @@ $aiTireSizes = $aiTireService->getTireSizesFromAI(
 
 ## Future Enhancements
 
+- [x] Use FREE AI provider (Google Gemini)
 - [ ] Cache AI results to reduce API calls
-- [ ] Add more AI providers (Google Gemini, etc.)
 - [ ] Add confidence scores for AI predictions
 - [ ] Allow users to rate AI accuracy
 - [ ] Batch processing for multiple vehicles
 
 ---
 
-**The AI tire size detection is now integrated!** 🚀
+## Quick Setup (2 Minutes)
 
-Just add your API key to Render environment variables and it will work automatically.
+1. **Get FREE API Key:** https://makersuite.google.com/app/apikey
+2. **Add to Render:** `GEMINI_API_KEY` = `AIza...`
+3. **Done!** AI tire detection works automatically - **100% FREE!**
+
+---
+
+**The FREE AI tire size detection is now integrated!** 🚀
+
+No credit card needed. Just add your free Google Gemini API key and it works!
