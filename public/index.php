@@ -227,10 +227,10 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             </div>
                             
                             <!-- AI Detected Tire Sizes Section -->
-                            <div x-show="vehicleToAdd && (vehicleToAdd.ai_front_tire || vehicleToAdd.ai_rear_tire)" class="mt-4 pt-4 border-t border-blue-100">
+                            <div x-show="vehicleToAdd && vehicleToAdd.ai_front_tire" class="mt-4 pt-4 border-t border-blue-100">
                                 <p class="text-sm font-semibold text-green-700 mb-2">✨ Recommended Tire Sizes (AI Detected):</p>
                                 <div class="grid grid-cols-2 gap-2 text-sm text-green-600">
-                                    <div x-show="vehicleToAdd.ai_front_tire">
+                                    <div>
                                         <span class="font-medium">Front:</span> 
                                         <span x-text="vehicleToAdd.ai_front_tire" class="font-bold"></span>
                                         <span class="ml-1 px-2 py-0.5 bg-green-200 text-green-800 text-xs rounded-full">AI</span>

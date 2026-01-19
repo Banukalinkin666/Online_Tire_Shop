@@ -290,6 +290,7 @@ function tireFitmentApp() {
                     if (tiresData.errors && tiresData.errors.vehicle_not_found) {
                         this.errorMessage = '';
                         // Pre-fill vehicle info from VIN decode, including AI tire sizes if available
+                        console.log('Vehicle not found. AI tire sizes available:', aiTireSizes);
                         this.vehicleToAdd = {
                             year: vehicle.year,
                             make: vehicle.make,
@@ -297,11 +298,12 @@ function tireFitmentApp() {
                             trim: trimToUse || null,
                             body_class: vehicle.body_class || '',
                             drive_type: vehicle.drive_type || '',
-                            front_tire: aiTireSizes ? (aiTireSizes.front_tire || '') : '',
-                            rear_tire: aiTireSizes ? (aiTireSizes.rear_tire || '') : '',
-                            ai_front_tire: aiTireSizes ? aiTireSizes.front_tire : null,
-                            ai_rear_tire: aiTireSizes ? aiTireSizes.rear_tire : null
+                            front_tire: aiTireSizes && aiTireSizes.front_tire ? aiTireSizes.front_tire : '',
+                            rear_tire: aiTireSizes && aiTireSizes.rear_tire ? aiTireSizes.rear_tire : '',
+                            ai_front_tire: aiTireSizes && aiTireSizes.front_tire ? aiTireSizes.front_tire : null,
+                            ai_rear_tire: aiTireSizes && aiTireSizes.rear_tire ? aiTireSizes.rear_tire : null
                         };
+                        console.log('vehicleToAdd set to:', this.vehicleToAdd);
                         this.showAddVehicleForm = true;
                     } else {
                         this.errorMessage = tiresData.message || 'Failed to find tire matches.';
