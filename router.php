@@ -10,19 +10,31 @@ $uri = $parsedUri['path'] ?? '/';
 
 // Route API requests to /api directory
 if (strpos($uri, '/api/') === 0) {
-    $file = __DIR__ . '/api' . substr($uri, 4); // Remove '/api' prefix and add '/api' directory
-    if (file_exists($file) && is_file($file)) {
+    // Extract the path after /api/
+    $apiPath = substr($uri, 5); // Remove '/api/' prefix (5 chars including trailing slash)
+    $file = __DIR__ . '/api/' . $apiPath;
+    
+    // Normalize path to prevent directory traversal
+    $file = realpath($file);
+    $apiDir = realpath(__DIR__ . '/api');
+    
+    // Security check: ensure file is within api directory
+    if ($file && strpos($file, $apiDir) === 0 && file_exists($file) && is_file($file)) {
         $_SERVER['SCRIPT_NAME'] = $uri;
         require $file;
         return true;
     } else {
-        // API file not found - return 404
+        // API file not found - return 404 with debug info (only in development)
         http_response_code(404);
         header('Content-Type: application/json');
-        echo json_encode([
+        $debug = [
             'success' => false,
-            'message' => 'API endpoint not found: ' . $uri
-        ]);
+            'message' => 'API endpoint not found: ' . $uri,
+            'requested_path' => $uri,
+            'resolved_file' => $file ?? 'null',
+            'api_directory' => $apiDir ?? 'null'
+        ];
+        echo json_encode($debug);
         return true;
     }
 }
