@@ -31,7 +31,7 @@ if (strpos($uri, '/assets/') === 0) {
     $file = __DIR__ . '/public' . $uri;
     if (file_exists($file) && is_file($file)) {
         // Set proper content type
-        $ext = pathinfo($file, PATHINFO_EXTENSION);
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
         $mimeTypes = [
             'css' => 'text/css',
             'js' => 'application/javascript',
@@ -50,8 +50,14 @@ if (strpos($uri, '/assets/') === 0) {
         if (isset($mimeTypes[$ext])) {
             header('Content-Type: ' . $mimeTypes[$ext]);
         }
-        return false; // Let PHP serve the file
+        // Read and output the file
+        readfile($file);
+        return true; // File served, stop processing
     }
+    // If file not found, return 404
+    http_response_code(404);
+    echo "File not found: " . $uri;
+    return true;
 }
 
 // Route import script
