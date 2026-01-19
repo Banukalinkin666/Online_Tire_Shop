@@ -23,7 +23,15 @@ class AITireSizeService
     public function __construct()
     {
         // Google Gemini API key (FREE tier available)
-        $this->geminiKey = $_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? null;
+        // Try multiple ways to get the API key
+        $this->geminiKey = $_ENV['GEMINI_API_KEY'] ?? $_SERVER['GEMINI_API_KEY'] ?? getenv('GEMINI_API_KEY') ?? null;
+        
+        // Log if key is found (without exposing the actual key)
+        if ($this->geminiKey) {
+            error_log("Gemini API key found: " . substr($this->geminiKey, 0, 10) . "... (length: " . strlen($this->geminiKey) . ")");
+        } else {
+            error_log("Gemini API key NOT found. Checked: _ENV, _SERVER, getenv()");
+        }
     }
     
     /**
@@ -125,30 +133,48 @@ No additional text, only valid JSON.";
         curl_close($ch);
         
         if ($error) {
+            error_log("Gemini API cURL error: " . $error);
             throw new Exception("Gemini API request failed: " . $error);
         }
         
         if ($httpCode !== 200) {
-            throw new Exception("Gemini API returned HTTP code: " . $httpCode);
+            error_log("Gemini API HTTP error: Code=" . $httpCode . ", Response=" . substr($response, 0, 500));
+            throw new Exception("Gemini API returned HTTP code: " . $httpCode . " - Response: " . substr($response, 0, 200));
         }
+        
+        error_log("Gemini API success: HTTP " . $httpCode . ", Response length: " . strlen($response));
         
         $data = json_decode($response, true);
         
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("Gemini API JSON decode error: " . json_last_error_msg() . ", Response: " . substr($response, 0, 500));
+            throw new Exception("Invalid JSON response from Gemini API: " . json_last_error_msg());
+        }
+        
         if (!isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-            throw new Exception("Invalid Gemini API response format");
+            error_log("Gemini API response structure error. Full response: " . json_encode($data));
+            throw new Exception("Invalid Gemini API response format - missing candidates[0].content.parts[0].text");
         }
         
         $content = trim($data['candidates'][0]['content']['parts'][0]['text']);
+        error_log("Gemini API extracted content: " . substr($content, 0, 200));
         
         // Extract JSON from response (in case AI adds extra text)
         if (preg_match('/\{[^}]+\}/', $content, $matches)) {
             $content = $matches[0];
+            error_log("Gemini API extracted JSON: " . $content);
         }
         
         $tireData = json_decode($content, true);
         
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log("Tire data JSON decode error: " . json_last_error_msg() . ", Content: " . $content);
+            throw new Exception("Failed to parse AI tire size JSON: " . json_last_error_msg());
+        }
+        
         if (!$tireData || !isset($tireData['front_tire'])) {
-            throw new Exception("AI did not return valid tire size data");
+            error_log("AI tire data validation failed. Data: " . json_encode($tireData));
+            throw new Exception("AI did not return valid tire size data - missing front_tire");
         }
         
         // Validate tire size format

@@ -66,7 +66,10 @@ try {
     
     // Always try AI, even if not configured (will return null gracefully)
     try {
+        error_log("Attempting AI tire size lookup for: " . $vehicleInfo['year'] . " " . $vehicleInfo['make'] . " " . $vehicleInfo['model']);
+        
         if ($aiTireService->isAvailable()) {
+            error_log("AI service is available, calling getTireSizesFromAI...");
             $aiTireSizes = $aiTireService->getTireSizesFromAI(
                 $vehicleInfo['year'],
                 $vehicleInfo['make'],
@@ -78,16 +81,16 @@ try {
             
             if ($aiTireSizes && isset($aiTireSizes['front_tire'])) {
                 $tireSizesSource = $aiTireSizes['source'] ?? 'ai';
-                error_log("AI tire sizes found: Front=" . $aiTireSizes['front_tire'] . ", Rear=" . ($aiTireSizes['rear_tire'] ?? 'null'));
+                error_log("✓ AI tire sizes SUCCESS: Front=" . $aiTireSizes['front_tire'] . ", Rear=" . ($aiTireSizes['rear_tire'] ?? 'null'));
             } else {
-                error_log("AI service available but returned no tire sizes");
+                error_log("✗ AI service available but returned null or invalid data");
             }
         } else {
-            error_log("AI service not available (API key not configured)");
+            error_log("✗ AI service not available (API key check failed)");
         }
     } catch (Exception $e) {
         // AI failed, but continue with database lookup
-        error_log("AI tire size lookup failed: " . $e->getMessage());
+        error_log("✗ AI tire size lookup EXCEPTION: " . $e->getMessage());
         error_log("AI error stack trace: " . $e->getTraceAsString());
     }
 
