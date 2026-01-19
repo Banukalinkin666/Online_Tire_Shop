@@ -12,31 +12,54 @@ $uri = $parsedUri['path'] ?? '/';
 if (strpos($uri, '/api/') === 0) {
     // Extract the path after /api/
     $apiPath = substr($uri, 5); // Remove '/api/' prefix (5 chars including trailing slash)
-    $file = __DIR__ . '/api/' . $apiPath;
     
-    // Normalize path to prevent directory traversal
-    $file = realpath($file);
-    $apiDir = realpath(__DIR__ . '/api');
-    
-    // Security check: ensure file is within api directory
-    if ($file && strpos($file, $apiDir) === 0 && file_exists($file) && is_file($file)) {
-        $_SERVER['SCRIPT_NAME'] = $uri;
-        require $file;
-        return true;
-    } else {
-        // API file not found - return 404 with debug info (only in development)
-        http_response_code(404);
+    // Security: prevent directory traversal (no .. or /)
+    if (strpos($apiPath, '..') !== false || strpos($apiPath, '/') === 0) {
+        http_response_code(403);
         header('Content-Type: application/json');
-        $debug = [
-            'success' => false,
-            'message' => 'API endpoint not found: ' . $uri,
-            'requested_path' => $uri,
-            'resolved_file' => $file ?? 'null',
-            'api_directory' => $apiDir ?? 'null'
-        ];
-        echo json_encode($debug);
+        echo json_encode(['success' => false, 'message' => 'Invalid API path']);
         return true;
     }
+    
+    $file = __DIR__ . '/api/' . $apiPath;
+    $apiDir = __DIR__ . '/api';
+    
+    // Security check: ensure resolved path is within api directory
+    $resolvedFile = realpath($file);
+    $resolvedApiDir = realpath($apiDir);
+    
+    // If realpath fails, use direct path check (for Docker compatibility)
+    if ($resolvedFile === false || $resolvedApiDir === false) {
+        // Fallback: check if file exists and path starts with api directory
+        if (file_exists($file) && is_file($file) && strpos($file, $apiDir) === 0) {
+            $_SERVER['SCRIPT_NAME'] = $uri;
+            require $file;
+            return true;
+        }
+    } else {
+        // Use realpath for security check
+        if (strpos($resolvedFile, $resolvedApiDir) === 0 && file_exists($resolvedFile) && is_file($resolvedFile)) {
+            $_SERVER['SCRIPT_NAME'] = $uri;
+            require $resolvedFile;
+            return true;
+        }
+    }
+    
+    // API file not found - return 404
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'success' => false,
+        'message' => 'API endpoint not found: ' . $uri,
+        'debug' => [
+            'requested_path' => $uri,
+            'api_path' => $apiPath,
+            'resolved_file' => $resolvedFile !== false ? $resolvedFile : $file,
+            'file_exists' => file_exists($file),
+            'is_file' => is_file($file)
+        ]
+    ]);
+    return true;
 }
 
 // Route health check directly
