@@ -230,6 +230,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                         <div>
                             <label for="front_tire" class="block text-sm font-medium text-gray-700 mb-2">
                                 Front Tire Size <span class="text-red-500">*</span>
+                                <span x-show="vehicleToAdd && vehicleToAdd.front_tire" class="text-xs text-green-600 font-normal ml-2">(AI Detected)</span>
                             </label>
                             <input 
                                 type="text" 
@@ -238,17 +239,24 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 placeholder="e.g., 215/55R17"
                                 pattern="\d{3}/\d{2}R\d{2}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                                :class="vehicleToAdd && vehicleToAdd.front_tire ? 'bg-green-50 border-green-300' : ''"
                                 required
                                 @keyup.enter="addVehicleToDatabase()"
                             >
                             <p class="text-xs text-gray-500 mt-1">
-                                <strong>Where to find:</strong> Check your current tire sidewall or owner's manual. Format: 225/65R17
+                                <span x-show="!vehicleToAdd || !vehicleToAdd.front_tire">
+                                    <strong>Where to find:</strong> Check your current tire sidewall or owner's manual. Format: 225/65R17
+                                </span>
+                                <span x-show="vehicleToAdd && vehicleToAdd.front_tire" class="text-green-700">
+                                    ✓ Tire size detected using AI. Please verify on your vehicle's tire sidewall or door jamb.
+                                </span>
                             </p>
                         </div>
                         
                         <div>
                             <label for="rear_tire" class="block text-sm font-medium text-gray-700 mb-2">
                                 Rear Tire Size <span class="text-gray-500 text-xs">(Optional - only if different from front)</span>
+                                <span x-show="vehicleToAdd && vehicleToAdd.rear_tire" class="text-xs text-green-600 font-normal ml-2">(AI Detected)</span>
                             </label>
                             <input 
                                 type="text" 
@@ -257,8 +265,14 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 placeholder="Leave blank if same as front"
                                 pattern="\d{3}/\d{2}R\d{2}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                :class="vehicleToAdd && vehicleToAdd.rear_tire ? 'bg-green-50 border-green-300' : ''"
                             >
-                            <p class="text-xs text-gray-500 mt-1">Most vehicles use the same size front and rear</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <span x-show="!vehicleToAdd || !vehicleToAdd.rear_tire">Most vehicles use the same size front and rear</span>
+                                <span x-show="vehicleToAdd && vehicleToAdd.rear_tire" class="text-green-700">
+                                    ✓ Staggered setup detected. Please verify on your vehicle.
+                                </span>
+                            </p>
                         </div>
                         
                         <div class="flex gap-2">
