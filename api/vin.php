@@ -10,6 +10,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Services\NHTSAService;
 use App\Services\TireMatchService;
+use App\Services\AITireSizeService;
 use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
 
@@ -58,9 +59,34 @@ try {
         $vehicleInfo['model']
     );
 
-    // Return vehicle info with available trims
+    // Try to get tire sizes using AI
+    $aiTireService = new AITireSizeService();
+    $aiTireSizes = null;
+    $tireSizesSource = 'database';
+    
+    if ($aiTireService->isAvailable()) {
+        try {
+            $aiTireSizes = $aiTireService->getTireSizesFromAI(
+                $vehicleInfo['year'],
+                $vehicleInfo['make'],
+                $vehicleInfo['model'],
+                $vehicleInfo['trim'] ?? null,
+                $vehicleInfo['body_class'] ?? null,
+                $vehicleInfo['drive_type'] ?? null
+            );
+            
+            if ($aiTireSizes) {
+                $tireSizesSource = $aiTireSizes['source'] ?? 'ai';
+            }
+        } catch (Exception $e) {
+            // AI failed, but continue with database lookup
+            error_log("AI tire size lookup failed: " . $e->getMessage());
+        }
+    }
+
+    // Return vehicle info with available trims and AI tire sizes
     // Note: VIN is NOT stored in database per privacy requirements
-    ResponseHelper::success([
+    $responseData = [
         'vehicle' => [
             'year' => $vehicleInfo['year'],
             'make' => $vehicleInfo['make'],
@@ -71,7 +97,20 @@ try {
         ],
         'trims' => $trims,
         'message' => 'VIN decoded successfully. Please select a trim to continue.'
-    ]);
+    ];
+    
+    // Add AI tire sizes if available
+    if ($aiTireSizes) {
+        $responseData['tire_sizes'] = [
+            'front_tire' => $aiTireSizes['front_tire'],
+            'rear_tire' => $aiTireSizes['rear_tire'],
+            'source' => $tireSizesSource,
+            'is_staggered' => !empty($aiTireSizes['rear_tire']) && $aiTireSizes['front_tire'] !== $aiTireSizes['rear_tire']
+        ];
+        $responseData['message'] = 'VIN decoded successfully. Tire sizes determined using AI.';
+    }
+    
+    ResponseHelper::success($responseData);
 
 } catch (Exception $e) {
     error_log("VIN decode error: " . $e->getMessage());

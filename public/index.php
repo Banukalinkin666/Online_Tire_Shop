@@ -201,10 +201,19 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 
                 <!-- Add Vehicle Form -->
                 <div x-show="showAddVehicleForm && vehicleToAdd" class="mt-4 bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                    <h3 class="text-lg font-bold text-blue-900 mb-2">Vehicle Not Available in Database</h3>
+                    <h3 class="text-lg font-bold text-blue-900 mb-2">
+                        <span x-show="!vehicleToAdd.front_tire">Vehicle Not Available in Database</span>
+                        <span x-show="vehicleToAdd.front_tire">Confirm Tire Sizes (AI Detected)</span>
+                    </h3>
                     <p class="text-sm text-blue-800 mb-4">
-                        We found your vehicle (<span x-text="vehicleToAdd.year + ' ' + vehicleToAdd.make + ' ' + vehicleToAdd.model"></span>) 
-                        but it's not in our database yet. Please enter your tire size to add it.
+                        <span x-show="!vehicleToAdd.front_tire">
+                            We found your vehicle (<span x-text="vehicleToAdd.year + ' ' + vehicleToAdd.make + ' ' + vehicleToAdd.model"></span>) 
+                            but it's not in our database yet. Please enter your tire size to add it.
+                        </span>
+                        <span x-show="vehicleToAdd.front_tire">
+                            We found your vehicle (<span x-text="vehicleToAdd.year + ' ' + vehicleToAdd.make + ' ' + vehicleToAdd.model"></span>) 
+                            and detected tire sizes using AI. Please verify and confirm to add to database.
+                        </span>
                     </p>
                     
                     <div class="space-y-4">
@@ -302,14 +311,19 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Front Tires:</span>
                                 <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.front_tire"></span>
+                                <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
                             </div>
                             <div x-show="results.fitment.is_staggered">
                                 <span class="text-sm font-medium text-gray-600">Rear Tires:</span>
                                 <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.rear_tire"></span>
+                                <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
                             </div>
                         </div>
                         <p x-show="results.fitment.is_staggered" class="text-sm text-gray-600 mt-2">
                             <em>This vehicle uses a staggered tire setup (different front and rear sizes)</em>
+                        </p>
+                        <p x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="text-xs text-green-700 mt-2">
+                            <strong>ℹ️ Note:</strong> Tire sizes were determined using AI. Always verify on your vehicle's tire sidewall or door jamb before purchasing.
                         </p>
                     </div>
                 </div>

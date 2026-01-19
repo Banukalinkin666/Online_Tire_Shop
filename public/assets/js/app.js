@@ -206,7 +206,67 @@ function tireFitmentApp() {
                 // In a real app, you might show a trim selector
                 const vehicle = vinData.data.vehicle;
                 const trims = vinData.data.trims || [];
+                const aiTireSizes = vinData.data.tire_sizes || null;
                 
+                // If AI provided tire sizes, show them immediately
+                if (aiTireSizes) {
+                    // Show vehicle info with AI tire sizes
+                    this.results = {
+                        vehicle: vehicle,
+                        fitment: {
+                            front_tire: aiTireSizes.front_tire,
+                            rear_tire: aiTireSizes.rear_tire || aiTireSizes.front_tire,
+                            is_staggered: aiTireSizes.is_staggered || false,
+                            notes: 'Tire sizes determined using AI from VIN decode'
+                        },
+                        tires: {
+                            front: [],
+                            rear: []
+                        }
+                    };
+                    
+                    // Update selected values
+                    this.selectedYear = vehicle.year;
+                    this.selectedMake = vehicle.make;
+                    this.selectedModel = vehicle.model;
+                    this.trims = trims;
+                    
+                    // Pre-fill vehicle info for adding to database (with AI tire sizes)
+                    this.vehicleToAdd = {
+                        year: vehicle.year,
+                        make: vehicle.make,
+                        model: vehicle.model,
+                        trim: vehicle.trim || (trims.length === 1 ? trims[0] : null),
+                        body_class: vehicle.body_class || '',
+                        drive_type: vehicle.drive_type || '',
+                        front_tire: aiTireSizes.front_tire,
+                        rear_tire: aiTireSizes.rear_tire || ''
+                    };
+                    
+                    // Try to search for tires in database
+                    const trimToUse = trims.length === 1 ? trims[0] : (this.selectedTrim || null);
+                    const tiresResponse = await fetch(
+                        this.getApiUrl(
+                            `tires.php?year=${vehicle.year}&make=${encodeURIComponent(vehicle.make)}&model=${encodeURIComponent(vehicle.model)}${trimToUse ? '&trim=' + encodeURIComponent(trimToUse) : ''}`
+                        )
+                    );
+                    
+                    const tiresData = await tiresResponse.json();
+                    
+                    if (tiresData.success && tiresData.data.tires) {
+                        // Found tires in database - merge with AI results
+                        this.results.tires = tiresData.data.tires;
+                    } else {
+                        // No tires in database, but we have AI tire sizes
+                        // Show option to add vehicle with AI tire sizes
+                        this.showAddVehicleForm = true;
+                    }
+                    
+                    this.showResults = true;
+                    return;
+                }
+                
+                // No AI tire sizes - proceed with normal database lookup
                 // Try to get tires with trim if only one trim, otherwise without trim
                 let trimToUse = trims.length === 1 ? trims[0] : (this.selectedTrim || null);
                 
