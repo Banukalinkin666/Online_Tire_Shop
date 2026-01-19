@@ -26,18 +26,41 @@ if ($uri === '/healthz.php' || $uri === '/healthz') {
     }
 }
 
-// Route public files to /public directory (CSS, JS, images, etc.)
-if (strpos($uri, '/assets/') === 0 || 
-    strpos($uri, '/import-schema.php') === 0 ||
-    preg_match('/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/i', $uri)) {
+// Route static assets (CSS, JS, images, etc.) - MUST be before other routes
+if (strpos($uri, '/assets/') === 0) {
     $file = __DIR__ . '/public' . $uri;
     if (file_exists($file) && is_file($file)) {
-        return false; // Serve the file directly
+        // Set proper content type
+        $ext = pathinfo($file, PATHINFO_EXTENSION);
+        $mimeTypes = [
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'json' => 'application/json',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject'
+        ];
+        if (isset($mimeTypes[$ext])) {
+            header('Content-Type: ' . $mimeTypes[$ext]);
+        }
+        return false; // Let PHP serve the file
     }
-    // If file doesn't exist, try without public prefix
-    $file = __DIR__ . $uri;
-    if (file_exists($file) && is_file($file)) {
-        return false;
+}
+
+// Route import script
+if ($uri === '/import-schema.php') {
+    $file = __DIR__ . '/public/import-schema.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/import-schema.php';
+        require $file;
+        return true;
     }
 }
 
