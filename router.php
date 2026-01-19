@@ -4,7 +4,9 @@
  * Routes requests to appropriate directories
  */
 
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// Parse URI and handle query strings properly
+$parsedUri = parse_url($_SERVER['REQUEST_URI']);
+$uri = $parsedUri['path'] ?? '/';
 
 // Route API requests to /api directory
 if (strpos($uri, '/api/') === 0) {
