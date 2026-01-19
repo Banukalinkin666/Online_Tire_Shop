@@ -354,6 +354,114 @@ function tireFitmentApp() {
             this.resetForm();
         },
         
+        // Add vehicle to database
+        async addVehicleToDatabase() {
+            if (!this.vehicleToAdd) {
+                return;
+            }
+            
+            // Validate front tire size format
+            const tireSizePattern = /^\d{3}\/\d{2}R\d{2}$/;
+            if (!this.vehicleToAdd.front_tire || !tireSizePattern.test(this.vehicleToAdd.front_tire.trim())) {
+                this.errorMessage = 'Please enter a valid front tire size (e.g., 215/55R17). Check your tire sidewall for the size.';
+                return;
+            }
+            
+            // Validate rear tire size if provided
+            if (this.vehicleToAdd.rear_tire && !tireSizePattern.test(this.vehicleToAdd.rear_tire.trim())) {
+                this.errorMessage = 'Please enter a valid rear tire size (e.g., 255/40R18) or leave it blank.';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                this.errorMessage = '';
+                
+                const response = await fetch(this.getApiUrl('add-vehicle.php'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        year: this.vehicleToAdd.year,
+                        make: this.vehicleToAdd.make,
+                        model: this.vehicleToAdd.model,
+                        trim: this.vehicleToAdd.trim || null,
+                        front_tire: this.vehicleToAdd.front_tire.trim(),
+                        rear_tire: this.vehicleToAdd.rear_tire ? this.vehicleToAdd.rear_tire.trim() : null,
+                        notes: 'User added vehicle via VIN decode'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.errorMessage = '';
+                    this.showAddVehicleForm = false;
+                    // Show success message briefly
+                    this.errorMessage = 'Vehicle added successfully! Searching for tires...';
+                    
+                    // Automatically search again to show tires
+                    if (this.searchMode === 'vin') {
+                        // Re-use the decoded vehicle info to search for tires
+                        const tiresResponse = await fetch(
+                            this.getApiUrl(
+                                `tires.php?year=${this.vehicleToAdd.year}&make=${encodeURIComponent(this.vehicleToAdd.make)}&model=${encodeURIComponent(this.vehicleToAdd.model)}${this.vehicleToAdd.trim ? '&trim=' + encodeURIComponent(this.vehicleToAdd.trim) : ''}`
+                            )
+                        );
+                        
+                        const tiresData = await tiresResponse.json();
+                        
+                        if (tiresData.success) {
+                            this.errorMessage = '';
+                            this.results = tiresData.data;
+                            this.showResults = true;
+                            // Update selected values
+                            this.selectedYear = this.vehicleToAdd.year;
+                            this.selectedMake = this.vehicleToAdd.make;
+                            this.selectedModel = this.vehicleToAdd.model;
+                        } else {
+                            this.errorMessage = 'Vehicle added, but no matching tires found in inventory.';
+                        }
+                    } else {
+                        await this.searchByYMM();
+                    }
+                } else {
+                    if (data.errors && Array.isArray(data.errors) && data.errors.some(e => e.includes('already exists'))) {
+                        this.errorMessage = 'This vehicle already exists in the database. Searching for tires...';
+                        // Try to search anyway
+                        if (this.searchMode === 'vin') {
+                            const tiresResponse = await fetch(
+                                this.getApiUrl(
+                                    `tires.php?year=${this.vehicleToAdd.year}&make=${encodeURIComponent(this.vehicleToAdd.make)}&model=${encodeURIComponent(this.vehicleToAdd.model)}${this.vehicleToAdd.trim ? '&trim=' + encodeURIComponent(this.vehicleToAdd.trim) : ''}`
+                                )
+                            );
+                            const tiresData = await tiresResponse.json();
+                            if (tiresData.success) {
+                                this.errorMessage = '';
+                                this.results = tiresData.data;
+                                this.showResults = true;
+                            }
+                        }
+                    } else {
+                        this.errorMessage = data.message || 'Failed to add vehicle to database.';
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding vehicle:', error);
+                this.errorMessage = 'An error occurred while adding the vehicle. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // Cancel add vehicle form
+        cancelAddVehicle() {
+            this.showAddVehicleForm = false;
+            this.vehicleToAdd = null;
+            this.errorMessage = '';
+        },
+        
         // Request quote (placeholder - integrate with your quote system)
         requestQuote(tire) {
             alert(`Quote requested for:\n\n${tire.brand} ${tire.model}\nSize: ${tire.tire_size}\nPrice: $${parseFloat(tire.price).toFixed(2)}\n\nThis would typically open a quote form or send an email.`);
