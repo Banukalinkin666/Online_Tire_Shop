@@ -10,6 +10,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Services\TireMatchService;
 use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
+use PDOException;
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
