@@ -5,6 +5,9 @@
  * GET /api/tires.php?year=2020&make=Toyota&model=Camry&trim=LE
  */
 
+// Suppress any output before JSON (prevents HTML errors from breaking JSON)
+ob_start();
+
 require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Services\TireMatchService;
@@ -12,6 +15,8 @@ use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
 use PDOException;
 
+// Clear any output buffer and set JSON headers
+ob_clean();
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
