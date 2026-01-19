@@ -64,7 +64,12 @@ try {
 
     ResponseHelper::success($result);
 
+} catch (PDOException $e) {
+    error_log("Tire matching database error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    ResponseHelper::error('Database error: Unable to retrieve tire matches. Please try again later.', 500);
 } catch (Exception $e) {
     error_log("Tire matching error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     ResponseHelper::error('Failed to retrieve tire matches: ' . $e->getMessage(), 500);
 }

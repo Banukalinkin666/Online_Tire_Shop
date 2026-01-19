@@ -29,10 +29,14 @@ class VehicleFitment
      */
     public function getFitment(int $year, string $make, string $model, ?string $trim = null): ?array
     {
+        // Normalize make and model for case-insensitive matching
+        $make = ucfirst(strtolower(trim($make)));
+        $model = ucfirst(strtolower(trim($model)));
+        
         $sql = "SELECT * FROM vehicle_fitment 
                 WHERE year = :year 
-                AND make = :make 
-                AND model = :model";
+                AND LOWER(TRIM(make)) = LOWER(:make)
+                AND LOWER(TRIM(model)) = LOWER(:model)";
         
         $params = [
             ':year' => $year,
@@ -41,7 +45,8 @@ class VehicleFitment
         ];
 
         if ($trim !== null && $trim !== '') {
-            $sql .= " AND trim = :trim";
+            $trim = trim($trim);
+            $sql .= " AND LOWER(TRIM(trim)) = LOWER(:trim)";
             $params[':trim'] = $trim;
         }
 
@@ -64,11 +69,15 @@ class VehicleFitment
      */
     public function getTrims(int $year, string $make, string $model): array
     {
+        // Normalize for case-insensitive matching
+        $make = ucfirst(strtolower(trim($make)));
+        $model = ucfirst(strtolower(trim($model)));
+        
         $sql = "SELECT DISTINCT trim 
                 FROM vehicle_fitment 
                 WHERE year = :year 
-                AND make = :make 
-                AND model = :model 
+                AND LOWER(TRIM(make)) = LOWER(:make)
+                AND LOWER(TRIM(model)) = LOWER(:model)
                 AND trim IS NOT NULL 
                 AND trim != ''
                 ORDER BY trim ASC";
@@ -111,10 +120,13 @@ class VehicleFitment
      */
     public function getModels(int $year, string $make): array
     {
+        // Normalize for case-insensitive matching
+        $make = ucfirst(strtolower(trim($make)));
+        
         $sql = "SELECT DISTINCT model 
                 FROM vehicle_fitment 
                 WHERE year = :year 
-                AND make = :make 
+                AND LOWER(TRIM(make)) = LOWER(:make)
                 ORDER BY model ASC";
 
         $stmt = $this->db->prepare($sql);
