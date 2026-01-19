@@ -21,26 +21,22 @@ if (strpos($uri, '/api/') === 0) {
         return true;
     }
     
+    // Build file path
     $file = __DIR__ . '/api/' . $apiPath;
-    $apiDir = __DIR__ . '/api';
+    $apiDir = realpath(__DIR__ . '/api');
     
-    // Security check: ensure resolved path is within api directory
-    $resolvedFile = realpath($file);
-    $resolvedApiDir = realpath($apiDir);
-    
-    // If realpath fails, use direct path check (for Docker compatibility)
-    if ($resolvedFile === false || $resolvedApiDir === false) {
-        // Fallback: check if file exists and path starts with api directory
-        if (file_exists($file) && is_file($file) && strpos($file, $apiDir) === 0) {
-            $_SERVER['SCRIPT_NAME'] = $uri;
-            require $file;
-            return true;
-        }
-    } else {
-        // Use realpath for security check
-        if (strpos($resolvedFile, $resolvedApiDir) === 0 && file_exists($resolvedFile) && is_file($resolvedFile)) {
+    // Simple check: file exists and is within api directory
+    if (file_exists($file) && is_file($file)) {
+        // Additional security: ensure file is in api directory
+        $resolvedFile = realpath($file);
+        if ($resolvedFile && $apiDir && strpos($resolvedFile, $apiDir) === 0) {
             $_SERVER['SCRIPT_NAME'] = $uri;
             require $resolvedFile;
+            return true;
+        } elseif (!$resolvedFile && strpos($file, __DIR__ . '/api/') === 0) {
+            // Fallback if realpath fails (Docker compatibility)
+            $_SERVER['SCRIPT_NAME'] = $uri;
+            require $file;
             return true;
         }
     }
@@ -50,14 +46,7 @@ if (strpos($uri, '/api/') === 0) {
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'API endpoint not found: ' . $uri,
-        'debug' => [
-            'requested_path' => $uri,
-            'api_path' => $apiPath,
-            'resolved_file' => $resolvedFile !== false ? $resolvedFile : $file,
-            'file_exists' => file_exists($file),
-            'is_file' => is_file($file)
-        ]
+        'message' => 'API endpoint not found: ' . $uri
     ]);
     return true;
 }
