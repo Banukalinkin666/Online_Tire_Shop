@@ -398,10 +398,15 @@ function tireFitmentApp() {
                 if (data.success) {
                     this.errorMessage = '';
                     this.showAddVehicleForm = false;
-                    // Show success message briefly
-                    this.errorMessage = 'Vehicle added successfully! Searching for tires...';
                     
-                    // Automatically search again to show tires
+                    // Show appropriate message
+                    if (data.data && data.data.already_exists) {
+                        this.errorMessage = 'Vehicle already exists in database. Searching for tires...';
+                    } else {
+                        this.errorMessage = 'Vehicle added successfully! Searching for tires...';
+                    }
+                    
+                    // Automatically search for tires
                     if (this.searchMode === 'vin') {
                         // Re-use the decoded vehicle info to search for tires
                         const tiresResponse = await fetch(
@@ -421,15 +426,23 @@ function tireFitmentApp() {
                             this.selectedMake = this.vehicleToAdd.make;
                             this.selectedModel = this.vehicleToAdd.model;
                         } else {
-                            this.errorMessage = 'Vehicle added, but no matching tires found in inventory.';
+                            // Check if vehicle not found (shouldn't happen if we just added it)
+                            if (tiresData.errors && tiresData.errors.vehicle_not_found) {
+                                this.errorMessage = 'Vehicle added, but no matching tires found in inventory.';
+                            } else {
+                                this.errorMessage = tiresData.message || 'Vehicle added, but unable to find tires.';
+                            }
                         }
                     } else {
                         await this.searchByYMM();
                     }
                 } else {
-                    if (data.errors && Array.isArray(data.errors) && data.errors.some(e => e.includes('already exists'))) {
-                        this.errorMessage = 'This vehicle already exists in the database. Searching for tires...';
-                        // Try to search anyway
+                    // Handle error response
+                    if (response.status === 409 || (data.message && data.message.includes('already exists'))) {
+                        // Vehicle already exists - just search for tires
+                        this.errorMessage = 'Vehicle already exists. Searching for tires...';
+                        this.showAddVehicleForm = false;
+                        
                         if (this.searchMode === 'vin') {
                             const tiresResponse = await fetch(
                                 this.getApiUrl(
@@ -441,6 +454,8 @@ function tireFitmentApp() {
                                 this.errorMessage = '';
                                 this.results = tiresData.data;
                                 this.showResults = true;
+                            } else {
+                                this.errorMessage = 'Vehicle exists, but no matching tires found in inventory.';
                             }
                         }
                     } else {
