@@ -15,7 +15,9 @@ use Exception;
  */
 class AITireSizeService
 {
-    private const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    // Try v1 endpoint first, fallback to v1beta if needed
+    private const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
+    private const GEMINI_MODEL = 'gemini-1.5-flash'; // Try this model first
     private const HUGGINGFACE_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
     
     private ?string $geminiKey;
@@ -98,7 +100,8 @@ If different front and rear sizes (staggered), provide both. If same, provide on
 Respond in JSON only: {\"front_tire\": \"225/65R17\", \"rear_tire\": \"225/65R17\" or null if same}
 No additional text, only valid JSON.";
         
-        $url = self::GEMINI_API_URL . '?key=' . urlencode($this->geminiKey);
+        // Try v1 endpoint first, fallback to v1beta if v1 fails
+        $url = self::GEMINI_API_BASE . '/v1/models/' . self::GEMINI_MODEL . ':generateContent?key=' . urlencode($this->geminiKey);
         
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -135,6 +138,49 @@ No additional text, only valid JSON.";
         if ($error) {
             error_log("Gemini API cURL error: " . $error);
             throw new Exception("Gemini API request failed: " . $error);
+        }
+        
+        // If v1 fails with 404, try v1beta as fallback
+        if ($httpCode === 404) {
+            error_log("Gemini API v1 returned 404, trying v1beta...");
+            $url = self::GEMINI_API_BASE . '/v1beta/models/' . self::GEMINI_MODEL . ':generateContent?key=' . urlencode($this->geminiKey);
+            
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'contents' => [
+                        [
+                            'parts' => [
+                                [
+                                    'text' => $prompt
+                                ]
+                            ]
+                        ]
+                    ],
+                    'generationConfig' => [
+                        'temperature' => 0.3,
+                        'maxOutputTokens' => 150
+                    ]
+                ]),
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+            
+            if ($error) {
+                error_log("Gemini API v1beta cURL error: " . $error);
+                throw new Exception("Gemini API request failed: " . $error);
+            }
         }
         
         if ($httpCode !== 200) {
