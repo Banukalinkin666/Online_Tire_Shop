@@ -13,6 +13,15 @@ if (strpos($uri, '/api/') === 0) {
         $_SERVER['SCRIPT_NAME'] = $uri;
         require $file;
         return true;
+    } else {
+        // API file not found - return 404
+        http_response_code(404);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'API endpoint not found: ' . $uri
+        ]);
+        return true;
     }
 }
 
