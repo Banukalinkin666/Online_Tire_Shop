@@ -222,14 +222,17 @@ function tireFitmentApp() {
                 if (!tiresData.success) {
                     // Check if vehicle not found in database
                     if (tiresData.errors && tiresData.errors.vehicle_not_found) {
-                        this.errorMessage = 'Vehicle not available in database.';
+                        this.errorMessage = '';
+                        // Pre-fill vehicle info from VIN decode
                         this.vehicleToAdd = {
                             year: vehicle.year,
                             make: vehicle.make,
                             model: vehicle.model,
                             trim: trimToUse || null,
                             body_class: vehicle.body_class || '',
-                            drive_type: vehicle.drive_type || ''
+                            drive_type: vehicle.drive_type || '',
+                            front_tire: '',
+                            rear_tire: ''
                         };
                         this.showAddVehicleForm = true;
                     } else {
@@ -289,12 +292,15 @@ function tireFitmentApp() {
                 if (!data.success) {
                     // Check if vehicle not found in database
                     if (data.errors && data.errors.vehicle_not_found) {
-                        this.errorMessage = 'Vehicle not available in database.';
+                        this.errorMessage = '';
+                        // Pre-fill vehicle info from YMM selection
                         this.vehicleToAdd = {
                             year: parseInt(this.selectedYear),
                             make: this.selectedMake,
                             model: this.selectedModel,
-                            trim: this.selectedTrim || null
+                            trim: this.selectedTrim || null,
+                            front_tire: '',
+                            rear_tire: ''
                         };
                         this.showAddVehicleForm = true;
                     } else {

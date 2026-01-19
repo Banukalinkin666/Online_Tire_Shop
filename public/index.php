@@ -201,21 +201,21 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 
                 <!-- Add Vehicle Form -->
                 <div x-show="showAddVehicleForm && vehicleToAdd" class="mt-4 bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg">
-                    <h3 class="text-lg font-bold text-blue-900 mb-4">Vehicle Not Available in Database</h3>
+                    <h3 class="text-lg font-bold text-blue-900 mb-2">Vehicle Not Available in Database</h3>
                     <p class="text-sm text-blue-800 mb-4">
-                        This vehicle (<span x-text="vehicleToAdd.year + ' ' + vehicleToAdd.make + ' ' + vehicleToAdd.model"></span>) 
-                        is not in our database. Please add it by providing the tire size information.
+                        We found your vehicle (<span x-text="vehicleToAdd.year + ' ' + vehicleToAdd.make + ' ' + vehicleToAdd.model"></span>) 
+                        but it's not in our database yet. Please enter your tire size to add it.
                     </p>
                     
                     <div class="space-y-4">
-                        <div class="bg-white p-4 rounded">
-                            <p class="text-sm text-gray-600 mb-2"><strong>Vehicle Information:</strong></p>
-                            <ul class="text-sm text-gray-700 space-y-1">
-                                <li>Year: <span x-text="vehicleToAdd.year"></span></li>
-                                <li>Make: <span x-text="vehicleToAdd.make"></span></li>
-                                <li>Model: <span x-text="vehicleToAdd.model"></span></li>
-                                <li x-show="vehicleToAdd.trim">Trim: <span x-text="vehicleToAdd.trim"></span></li>
-                            </ul>
+                        <div class="bg-white p-4 rounded border border-blue-200">
+                            <p class="text-sm font-semibold text-gray-700 mb-2">Vehicle Information (from VIN):</p>
+                            <div class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                                <div><span class="font-medium">Year:</span> <span x-text="vehicleToAdd.year"></span></div>
+                                <div><span class="font-medium">Make:</span> <span x-text="vehicleToAdd.make"></span></div>
+                                <div><span class="font-medium">Model:</span> <span x-text="vehicleToAdd.model"></span></div>
+                                <div x-show="vehicleToAdd.trim"><span class="font-medium">Trim:</span> <span x-text="vehicleToAdd.trim"></span></div>
+                            </div>
                         </div>
                         
                         <div>
@@ -228,34 +228,37 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 x-model="vehicleToAdd.front_tire"
                                 placeholder="e.g., 215/55R17"
                                 pattern="\d{3}/\d{2}R\d{2}"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                                 required
+                                @keyup.enter="addVehicleToDatabase()"
                             >
-                            <p class="text-xs text-gray-500 mt-1">Format: 225/65R17 (width/aspect ratio/rim diameter)</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <strong>Where to find:</strong> Check your current tire sidewall or owner's manual. Format: 225/65R17
+                            </p>
                         </div>
                         
                         <div>
                             <label for="rear_tire" class="block text-sm font-medium text-gray-700 mb-2">
-                                Rear Tire Size (Optional - leave blank if same as front)
+                                Rear Tire Size <span class="text-gray-500 text-xs">(Optional - only if different from front)</span>
                             </label>
                             <input 
                                 type="text" 
                                 id="rear_tire"
                                 x-model="vehicleToAdd.rear_tire"
-                                placeholder="e.g., 255/40R18 (for staggered setups)"
+                                placeholder="Leave blank if same as front"
                                 pattern="\d{3}/\d{2}R\d{2}"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                            <p class="text-xs text-gray-500 mt-1">Only needed if rear tires are different from front</p>
+                            <p class="text-xs text-gray-500 mt-1">Most vehicles use the same size front and rear</p>
                         </div>
                         
                         <div class="flex gap-2">
                             <button 
                                 @click="addVehicleToDatabase()"
                                 :disabled="loading || !vehicleToAdd.front_tire"
-                                class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                                class="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
                             >
-                                <span x-show="!loading">Add Vehicle to Database</span>
+                                <span x-show="!loading">✓ Add Vehicle & Continue</span>
                                 <span x-show="loading">Adding...</span>
                             </button>
                             <button 
