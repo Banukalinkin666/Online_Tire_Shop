@@ -29,9 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 // Get and validate parameters
 $year = InputHelper::sanitizeInt(InputHelper::get('year'));
-$make = InputHelper::sanitizeString(InputHelper::get('make'));
-$model = InputHelper::sanitizeString(InputHelper::get('model'));
-$trim = InputHelper::sanitizeString(InputHelper::get('trim'));
+$make = InputHelper::sanitizeString(InputHelper::get('make') ?? '');
+$model = InputHelper::sanitizeString(InputHelper::get('model') ?? '');
+$trim = InputHelper::sanitizeString(InputHelper::get('trim') ?? '');
 
 // Validate required fields
 $errors = [];

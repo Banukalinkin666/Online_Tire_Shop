@@ -11,11 +11,14 @@ class InputHelper
     /**
      * Sanitize string input
      * 
-     * @param string $input
+     * @param string|null $input
      * @return string
      */
-    public static function sanitizeString(string $input): string
+    public static function sanitizeString(?string $input): string
     {
+        if ($input === null) {
+            return '';
+        }
         return trim(strip_tags($input));
     }
 
