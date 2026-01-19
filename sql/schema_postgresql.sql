@@ -71,7 +71,8 @@ CREATE TRIGGER update_tires_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Sample data insertion
+-- Sample data insertion (minimal - use production_data.sql for full database)
+-- For production use, import sql/production_data.sql and sql/production_tires.sql instead
 INSERT INTO vehicle_fitment (year, make, model, trim, front_tire, rear_tire, notes) VALUES
 (2020, 'Toyota', 'Camry', 'LE', '215/55R17', NULL, 'Standard trim'),
 (2020, 'Toyota', 'Camry', 'XSE', '235/45R18', NULL, 'Sport trim'),
