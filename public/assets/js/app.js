@@ -287,12 +287,26 @@ function tireFitmentApp() {
                 const data = await response.json();
                 
                 if (!data.success) {
-                    this.errorMessage = data.message || 'Failed to find tire matches.';
+                    // Check if vehicle not found in database
+                    if (data.errors && data.errors.vehicle_not_found) {
+                        this.errorMessage = 'Vehicle not available in database.';
+                        this.vehicleToAdd = {
+                            year: parseInt(this.selectedYear),
+                            make: this.selectedMake,
+                            model: this.selectedModel,
+                            trim: this.selectedTrim || null
+                        };
+                        this.showAddVehicleForm = true;
+                    } else {
+                        this.errorMessage = data.message || 'Failed to find tire matches.';
+                        this.showAddVehicleForm = false;
+                    }
                     return;
                 }
                 
                 this.results = data.data;
                 this.showResults = true;
+                this.showAddVehicleForm = false;
                 
             } catch (error) {
                 console.error('Error searching by YMM:', error);
@@ -313,6 +327,8 @@ function tireFitmentApp() {
             this.models = [];
             this.trims = [];
             this.errorMessage = '';
+            this.showAddVehicleForm = false;
+            this.vehicleToAdd = null;
             if (this.searchMode === 'ymm') {
                 this.loadYears();
             }
