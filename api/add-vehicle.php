@@ -83,9 +83,19 @@ try {
     $existing = $vehicleFitment->getFitment($year, $make, $model, $trim);
     
     if ($existing) {
-        ResponseHelper::error('This vehicle already exists in the database.', 409, [
-            'vehicle' => $existing
-        ]);
+        // Vehicle already exists - return success but indicate it was already there
+        ResponseHelper::success([
+            'message' => 'Vehicle already exists in database.',
+            'already_exists' => true,
+            'vehicle' => [
+                'year' => $year,
+                'make' => $make,
+                'model' => $model,
+                'trim' => $trim,
+                'front_tire' => $frontTire,
+                'rear_tire' => $rearTire
+            ]
+        ], 200);
     }
     
     // Add vehicle to database
