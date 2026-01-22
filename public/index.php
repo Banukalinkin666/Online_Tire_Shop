@@ -372,15 +372,12 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     </div>
                 </div>
 
-                <!-- Front Tires -->
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <!-- Front Tires (only show if tires are available) -->
+                <div x-show="results.tires.front.length > 0" class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-xl font-bold text-gray-900 mb-4">
                         Front Tires (<span x-text="results.fitment.front_tire"></span>)
                     </h3>
-                    <div x-show="results.tires.front.length === 0" class="text-center py-8 text-gray-500">
-                        No matching tires found in stock for this size.
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" x-show="results.tires.front.length > 0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="tire in results.tires.front" :key="tire.id">
                             <div class="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
                                 <h4 class="font-semibold text-lg text-gray-900" x-text="tire.brand + ' ' + tire.model"></h4>
@@ -414,15 +411,12 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     </div>
                 </div>
 
-                <!-- Rear Tires (if staggered) -->
-                <div x-show="results.fitment.is_staggered" class="bg-white rounded-lg shadow-md p-6">
+                <!-- Rear Tires (only show if staggered AND tires are available) -->
+                <div x-show="results.fitment.is_staggered && results.tires.rear.length > 0" class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-xl font-bold text-gray-900 mb-4">
                         Rear Tires (<span x-text="results.fitment.rear_tire"></span>)
                     </h3>
-                    <div x-show="results.tires.rear.length === 0" class="text-center py-8 text-gray-500">
-                        No matching tires found in stock for this size.
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" x-show="results.tires.rear.length > 0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <template x-for="tire in results.tires.rear" :key="tire.id">
                             <div class="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
                                 <h4 class="font-semibold text-lg text-gray-900" x-text="tire.brand + ' ' + tire.model"></h4>
