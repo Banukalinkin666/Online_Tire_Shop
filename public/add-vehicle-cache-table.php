@@ -13,8 +13,6 @@ ini_set('display_errors', '1');
 require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Database\Connection;
-use PDO;
-use PDOException;
 
 // Simple security: Allow if IMPORT_ALLOWED is set OR if accessed directly (for one-time use)
 // You can delete this file after running it
