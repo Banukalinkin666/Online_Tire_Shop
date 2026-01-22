@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Database\Connection;
 use PDO;
+use PDOException;
 
 /**
  * Vehicle Cache Model
@@ -26,22 +27,29 @@ class VehicleCache
      */
     public function getCachedVehicle(string $vin): ?array
     {
-        $sql = "SELECT vin, year, make, model, trim, body_class, created_at 
-                FROM vehicle_cache 
-                WHERE vin = :vin 
-                LIMIT 1";
+        try {
+            $sql = "SELECT vin, year, make, model, trim, body_class, created_at 
+                    FROM vehicle_cache 
+                    WHERE vin = :vin 
+                    LIMIT 1";
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':vin' => strtoupper($vin)]);
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([':vin' => strtoupper($vin)]);
 
-        $result = $stmt->fetch();
-        return $result ? [
-            'year' => (int)$result['year'],
-            'make' => $result['make'],
-            'model' => $result['model'],
-            'trim' => $result['trim'],
-            'body_class' => $result['body_class']
-        ] : null;
+            $result = $stmt->fetch();
+            return $result ? [
+                'year' => (int)$result['year'],
+                'make' => $result['make'],
+                'model' => $result['model'],
+                'trim' => $result['trim'],
+                'body_class' => $result['body_class']
+            ] : null;
+        } catch (PDOException $e) {
+            // Table might not exist yet - that's okay, just return null
+            // The system will work without caching
+            error_log("Vehicle cache table not available (getCachedVehicle): " . $e->getMessage());
+            return null;
+        }
     }
 
     /**
