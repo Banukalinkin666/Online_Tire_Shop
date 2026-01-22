@@ -123,6 +123,16 @@ if ($uri === '/add-vehicle-cache-table.php') {
     }
 }
 
+// Route import-production-data script
+if ($uri === '/import-production-data.php') {
+    $file = __DIR__ . '/public/import-production-data.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/import-production-data.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
