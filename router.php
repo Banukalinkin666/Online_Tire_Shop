@@ -21,32 +21,30 @@ if (strpos($uri, '/api/') === 0) {
         return true;
     }
     
-    // Build file path
+    // Build file path - use direct path check (more reliable in Docker)
     $file = __DIR__ . '/api/' . $apiPath;
-    $apiDir = realpath(__DIR__ . '/api');
     
-    // Simple check: file exists and is within api directory
-    if (file_exists($file) && is_file($file)) {
-        // Additional security: ensure file is in api directory
-        $resolvedFile = realpath($file);
-        if ($resolvedFile && $apiDir && strpos($resolvedFile, $apiDir) === 0) {
-            $_SERVER['SCRIPT_NAME'] = $uri;
-            require $resolvedFile;
-            return true;
-        } elseif (!$resolvedFile && strpos($file, __DIR__ . '/api/') === 0) {
-            // Fallback if realpath fails (Docker compatibility)
-            $_SERVER['SCRIPT_NAME'] = $uri;
-            require $file;
-            return true;
-        }
+    // Simple check: file exists and path contains /api/
+    if (file_exists($file) && is_file($file) && strpos($file, '/api/') !== false) {
+        $_SERVER['SCRIPT_NAME'] = $uri;
+        require $file;
+        return true;
     }
     
-    // API file not found - return 404
+    // API file not found - return 404 with debug info
     http_response_code(404);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
-        'message' => 'API endpoint not found: ' . $uri
+        'message' => 'API endpoint not found: ' . $uri,
+        'debug' => [
+            'requested_uri' => $uri,
+            'api_path' => $apiPath,
+            'resolved_file' => $file,
+            'file_exists' => file_exists($file),
+            'is_file' => is_file($file),
+            'api_dir_exists' => is_dir(__DIR__ . '/api')
+        ]
     ]);
     return true;
 }
