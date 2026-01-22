@@ -24,14 +24,29 @@ if (strpos($uri, '/api/') === 0) {
     // Build file path - use direct path check (more reliable in Docker)
     $file = __DIR__ . '/api/' . $apiPath;
     
-    // Normalize path separators for cross-platform compatibility
-    $file = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $file);
-    $file = realpath($file) ?: $file; // Try to resolve real path, fallback to original
+    // Try multiple path formats for cross-platform compatibility
+    $possiblePaths = [
+        $file,
+        __DIR__ . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . $apiPath,
+        realpath(__DIR__ . '/api/' . $apiPath) ?: null,
+    ];
     
-    // Simple check: file exists and path contains /api/ or \api\
-    if (file_exists($file) && is_file($file) && (strpos($file, '/api/') !== false || strpos($file, '\\api\\') !== false || strpos($file, DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR) !== false)) {
+    $foundFile = null;
+    foreach ($possiblePaths as $testPath) {
+        if ($testPath && file_exists($testPath) && is_file($testPath)) {
+            // Additional security: ensure file is actually in api directory
+            $normalizedPath = str_replace(['\\', '/'], '/', $testPath);
+            $normalizedApiDir = str_replace(['\\', '/'], '/', __DIR__ . '/api');
+            if (strpos($normalizedPath, $normalizedApiDir) === 0) {
+                $foundFile = $testPath;
+                break;
+            }
+        }
+    }
+    
+    if ($foundFile) {
         $_SERVER['SCRIPT_NAME'] = $uri;
-        require $file;
+        require $foundFile;
         return true;
     }
     
