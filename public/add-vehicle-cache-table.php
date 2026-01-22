@@ -16,6 +16,16 @@ use App\Database\Connection;
 use PDO;
 use PDOException;
 
+// Simple security: Allow if IMPORT_ALLOWED is set OR if accessed directly (for one-time use)
+// You can delete this file after running it
+$importAllowed = $_ENV['IMPORT_ALLOWED'] ?? $_SERVER['IMPORT_ALLOWED'] ?? 'false';
+if ($importAllowed !== 'true') {
+    // Still allow, but warn user to delete file after use
+    $warnDelete = true;
+} else {
+    $warnDelete = false;
+}
+
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
@@ -66,6 +76,9 @@ try {
     if ($tableExists) {
         echo "<div class='info'><strong>Status:</strong> The vehicle_cache table already exists. No action needed.</div>";
         echo "<p>You can safely delete this file after verification.</p>";
+        if ($warnDelete) {
+            echo "<div class='error' style='margin-top: 20px;'><strong>⚠️ SECURITY:</strong> Please delete this file (add-vehicle-cache-table.php) after use for security!</div>";
+        }
     } else {
         // Create table based on database type
         if ($isPostgreSQL) {
@@ -107,7 +120,12 @@ try {
         }
         
         echo "<div class='success'><strong>✓ Success!</strong> The vehicle_cache table has been created successfully.</div>";
-        echo "<p>The VIN caching feature is now enabled. You can safely delete this file.</p>";
+        echo "<p>The VIN caching feature is now enabled.</p>";
+        if ($warnDelete) {
+            echo "<div class='error' style='margin-top: 20px;'><strong>⚠️ SECURITY:</strong> Please delete this file (add-vehicle-cache-table.php) after use for security!</div>";
+        } else {
+            echo "<p>You can safely delete this file.</p>";
+        }
     }
     
     // Show table structure
