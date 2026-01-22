@@ -113,6 +113,16 @@ if ($uri === '/test-ai.php') {
     }
 }
 
+// Route add-vehicle-cache-table script
+if ($uri === '/add-vehicle-cache-table.php') {
+    $file = __DIR__ . '/public/add-vehicle-cache-table.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/add-vehicle-cache-table.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
