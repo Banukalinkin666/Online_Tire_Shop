@@ -21,33 +21,29 @@ if (strpos($uri, '/api/') === 0) {
         return true;
     }
     
-    // Build file path - use direct path check (more reliable in Docker)
-    $apiDir = __DIR__ . '/api';
-    $file = $apiDir . '/' . $apiPath;
+    // Build file path - simple and direct
+    $apiDir = __DIR__ . DIRECTORY_SEPARATOR . 'api';
+    $file = $apiDir . DIRECTORY_SEPARATOR . $apiPath;
     
-    // Try multiple path formats
-    $testPaths = [
-        $file,
-        str_replace('\\', '/', $file),
-        str_replace('/', '\\', $file),
-        realpath($file) ?: null,
-    ];
-    
-    foreach ($testPaths as $testFile) {
-        if (!$testFile) continue;
+    // Check if file exists (simple check first)
+    if (file_exists($file) && is_file($file)) {
+        // Basic security: ensure path contains 'api' directory
+        $normalizedPath = str_replace(['\\', '/'], '/', strtolower($file));
+        $normalizedApiDir = str_replace(['\\', '/'], '/', strtolower($apiDir));
         
-        // Check if file exists
-        if (file_exists($testFile) && is_file($testFile)) {
-            // Security: ensure file is in api directory (normalize for comparison)
-            $normalizedTest = str_replace(['\\', '/'], '/', $testFile);
-            $normalizedApiDir = str_replace(['\\', '/'], '/', $apiDir);
-            
-            if (strpos($normalizedTest, $normalizedApiDir) === 0) {
-                $_SERVER['SCRIPT_NAME'] = $uri;
-                require $testFile;
-                return true;
-            }
+        if (strpos($normalizedPath, $normalizedApiDir) !== false) {
+            $_SERVER['SCRIPT_NAME'] = $uri;
+            require $file;
+            return true;
         }
+    }
+    
+    // Try with forward slashes (for Docker/Linux)
+    $fileAlt = __DIR__ . '/api/' . $apiPath;
+    if (file_exists($fileAlt) && is_file($fileAlt)) {
+        $_SERVER['SCRIPT_NAME'] = $uri;
+        require $fileAlt;
+        return true;
     }
     
     // API file not found - return 404 with debug info
