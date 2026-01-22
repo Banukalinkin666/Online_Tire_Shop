@@ -25,28 +25,28 @@ if (strpos($uri, '/api/') === 0) {
     $apiDir = __DIR__ . '/api';
     $file = $apiDir . '/' . $apiPath;
     
-    // Normalize path (handle both / and \ separators)
-    $file = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $file);
-    $apiDir = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $apiDir);
+    // Try multiple path formats
+    $testPaths = [
+        $file,
+        str_replace('\\', '/', $file),
+        str_replace('/', '\\', $file),
+        realpath($file) ?: null,
+    ];
     
-    // Security: ensure the resolved path is still within api directory
-    $resolvedFile = realpath($file);
-    $resolvedApiDir = realpath($apiDir);
-    
-    // Use resolved path if available, otherwise use original
-    $finalFile = $resolvedFile ?: $file;
-    $finalApiDir = $resolvedApiDir ?: $apiDir;
-    
-    // Check if file exists and is within api directory
-    if (file_exists($finalFile) && is_file($finalFile)) {
-        // Security check: ensure file is in api directory
-        $normalizedFile = str_replace(['\\', '/'], '/', $finalFile);
-        $normalizedApiDir = str_replace(['\\', '/'], '/', $finalApiDir);
+    foreach ($testPaths as $testFile) {
+        if (!$testFile) continue;
         
-        if (strpos($normalizedFile, $normalizedApiDir) === 0) {
-            $_SERVER['SCRIPT_NAME'] = $uri;
-            require $finalFile;
-            return true;
+        // Check if file exists
+        if (file_exists($testFile) && is_file($testFile)) {
+            // Security: ensure file is in api directory (normalize for comparison)
+            $normalizedTest = str_replace(['\\', '/'], '/', $testFile);
+            $normalizedApiDir = str_replace(['\\', '/'], '/', $apiDir);
+            
+            if (strpos($normalizedTest, $normalizedApiDir) === 0) {
+                $_SERVER['SCRIPT_NAME'] = $uri;
+                require $testFile;
+                return true;
+            }
         }
     }
     

@@ -578,6 +578,20 @@ function tireFitmentApp() {
                     })
                 });
                 
+                // Check if response is OK
+                if (!aiResponse.ok) {
+                    const errorText = await aiResponse.text();
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        errorData = { success: false, message: `HTTP ${aiResponse.status}: ${errorText.substring(0, 100)}` };
+                    }
+                    console.error('AI Detection HTTP Error:', aiResponse.status, errorData);
+                    this.errorMessage = errorData.message || `AI detection failed (HTTP ${aiResponse.status}). Please enter tire sizes manually.`;
+                    return;
+                }
+                
                 const aiData = await aiResponse.json();
                 
                 console.log('AI Detection Response:', aiData);
