@@ -264,6 +264,57 @@ No additional text, only valid JSON.";
     }
     
     /**
+     * List available Gemini models for this API key
+     * 
+     * @return array List of available model names
+     */
+    private function listAvailableModels(): array
+    {
+        if (!$this->geminiKey) {
+            return [];
+        }
+        
+        try {
+            $url = self::GEMINI_API_BASE . '/v1/models?key=' . urlencode($this->geminiKey);
+            
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 5,
+                CURLOPT_CONNECTTIMEOUT => 3
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode === 200) {
+                $data = json_decode($response, true);
+                $models = [];
+                if (isset($data['models']) && is_array($data['models'])) {
+                    foreach ($data['models'] as $model) {
+                        if (isset($model['name'])) {
+                            // Extract model name (e.g., "models/gemini-1.5-flash" -> "gemini-1.5-flash")
+                            $name = str_replace('models/', '', $model['name']);
+                            // Only include models that support generateContent
+                            if (isset($model['supportedGenerationMethods']) && 
+                                in_array('generateContent', $model['supportedGenerationMethods'])) {
+                                $models[] = $name;
+                            }
+                        }
+                    }
+                }
+                return $models;
+            }
+        } catch (Exception $e) {
+            error_log("Failed to list models: " . $e->getMessage());
+        }
+        
+        return [];
+    }
+    
+    /**
      * Check if AI service is available
      */
     public function isAvailable(): bool
