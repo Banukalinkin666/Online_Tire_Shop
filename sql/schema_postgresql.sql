@@ -25,6 +25,32 @@ CREATE INDEX IF NOT EXISTS idx_make ON vehicle_fitment(make);
 CREATE INDEX IF NOT EXISTS idx_model ON vehicle_fitment(model);
 CREATE INDEX IF NOT EXISTS idx_year_make_model ON vehicle_fitment(year, make, model);
 CREATE INDEX IF NOT EXISTS idx_trim ON vehicle_fitment(trim);
+CREATE INDEX IF NOT EXISTS idx_year_make_model_fallback ON vehicle_fitment(year, make, model) WHERE trim IS NULL OR trim = '';
+
+-- Vehicle cache table (stores decoded VIN data to reduce NHTSA API calls)
+CREATE TABLE IF NOT EXISTS vehicle_cache (
+    vin VARCHAR(17) PRIMARY KEY,
+    year INTEGER NOT NULL,
+    make VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    trim VARCHAR(150) DEFAULT NULL,
+    body_class VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cache_year_make_model ON vehicle_cache(year, make, model);
+
+-- Vehicle cache table (stores decoded VIN data to reduce API calls)
+CREATE TABLE IF NOT EXISTS vehicle_cache (
+    vin VARCHAR(17) PRIMARY KEY,
+    year INTEGER NOT NULL,
+    make VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    trim VARCHAR(150) DEFAULT NULL,
+    body_class VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_year_make_model (year, make, model)
+);
 
 -- Tires inventory table
 CREATE TABLE IF NOT EXISTS tires (

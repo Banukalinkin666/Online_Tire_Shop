@@ -44,17 +44,19 @@ require_once __DIR__ . '/../app/bootstrap.php';
             <p class="text-gray-600">Enter your vehicle information to find compatible tires</p>
         </header>
 
-        <!-- Disclaimer -->
-        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6" x-show="!loading">
+        <!-- Legal Disclaimer (MANDATORY - Prominent) -->
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-md" x-show="!loading">
             <div class="flex">
                 <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <svg class="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
                 </div>
                 <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
-                        <strong>Important:</strong> Always verify tire size on your vehicle's driver door jamb or owner's manual before purchasing.
+                    <h3 class="text-sm font-bold text-red-800 mb-1">⚠️ Legal Disclaimer</h3>
+                    <p class="text-sm text-red-700 font-medium">
+                        <strong>Vehicle and tire information is provided for reference only.</strong><br>
+                        Always verify tire size using the vehicle door placard or owner's manual before purchasing.
                     </p>
                 </div>
             </div>
@@ -343,16 +345,26 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <div>
                                 <span class="text-sm font-medium text-gray-600">Front Tires:</span>
                                 <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.front_tire"></span>
+                                <span x-show="results.fitment.verified === true" class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded-full">✓ Verified</span>
+                                <span x-show="results.fitment.verified === false" class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">⚠ Estimated</span>
                                 <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
                             </div>
                             <div x-show="results.fitment.is_staggered">
                                 <span class="text-sm font-medium text-gray-600">Rear Tires:</span>
                                 <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.rear_tire"></span>
+                                <span x-show="results.fitment.verified === true" class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded-full">✓ Verified</span>
+                                <span x-show="results.fitment.verified === false" class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">⚠ Estimated</span>
                                 <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
                             </div>
                         </div>
                         <p x-show="results.fitment.is_staggered" class="text-sm text-gray-600 mt-2">
                             <em>This vehicle uses a staggered tire setup (different front and rear sizes)</em>
+                        </p>
+                        <p x-show="results.fitment.verified === false" class="text-xs text-yellow-700 mt-2 bg-yellow-50 p-2 rounded">
+                            <strong>⚠️ Estimated Data:</strong> Tire size is estimated (trim not matched). This is the most common tire size for this vehicle model/year. Always verify on your vehicle's door placard or owner's manual.
+                        </p>
+                        <p x-show="results.fitment.verified === true" class="text-xs text-green-700 mt-2">
+                            <strong>✓ Verified:</strong> Tire size matches your exact vehicle configuration.
                         </p>
                         <p x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="text-xs text-green-700 mt-2">
                             <strong>ℹ️ Note:</strong> Tire sizes were determined using AI. Always verify on your vehicle's tire sidewall or door jamb before purchasing.

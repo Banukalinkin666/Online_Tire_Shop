@@ -54,6 +54,9 @@ class TireMatchService
         $tireSizes = array_unique([$frontSize, $rearSize]);
         $tiresBySize = $this->tireModel->findBySizes($tireSizes);
 
+        // Determine if data is verified or estimated
+        $verified = isset($fitment['verified']) ? (bool)$fitment['verified'] : true;
+        
         // Organize results
         $result = [
             'success' => true,
@@ -67,6 +70,7 @@ class TireMatchService
                 'front_tire' => $frontSize,
                 'rear_tire' => $rearSize,
                 'is_staggered' => $isStaggered,
+                'verified' => $verified, // true = exact match, false = estimated (fallback)
                 'notes' => $fitment['notes']
             ],
             'tires' => [

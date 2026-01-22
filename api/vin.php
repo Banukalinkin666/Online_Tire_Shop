@@ -16,6 +16,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Services\NHTSAService;
 use App\Services\TireMatchService;
 use App\Services\AITireSizeService;
+use App\Models\VehicleCache;
 use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
 
@@ -54,9 +55,18 @@ if (!InputHelper::validateVIN($vin)) {
 }
 
 try {
-    // Decode VIN
-    $nhtsaService = new NHTSAService();
-    $vehicleInfo = $nhtsaService->decodeVIN($vin);
+    // Check cache first to reduce API calls
+    $vehicleCache = new VehicleCache();
+    $vehicleInfo = $vehicleCache->getCachedVehicle($vin);
+    
+    // If not cached, decode VIN using NHTSA API
+    if (!$vehicleInfo) {
+        $nhtsaService = new NHTSAService();
+        $vehicleInfo = $nhtsaService->decodeVIN($vin);
+        
+        // Cache the decoded vehicle data
+        $vehicleCache->cacheVehicle($vin, $vehicleInfo);
+    }
 
     // Get available trims for this vehicle
     $tireMatchService = new TireMatchService();

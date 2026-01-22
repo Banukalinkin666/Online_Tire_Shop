@@ -20,12 +20,13 @@ class VehicleFitment
 
     /**
      * Get fitment by Year, Make, Model, and optional Trim
+     * Includes fallback matching (without trim) if exact match fails
      * 
      * @param int $year
      * @param string $make
      * @param string $model
      * @param string|null $trim
-     * @return array|null
+     * @return array|null Returns fitment with 'verified' flag (true = exact match, false = fallback)
      */
     public function getFitment(int $year, string $make, string $model, ?string $trim = null): ?array
     {
@@ -33,30 +34,53 @@ class VehicleFitment
         $make = ucfirst(strtolower(trim($make)));
         $model = ucfirst(strtolower(trim($model)));
         
+        // Try exact match first (with trim if provided)
+        if ($trim !== null && $trim !== '') {
+            $trim = trim($trim);
+            $sql = "SELECT * FROM vehicle_fitment 
+                    WHERE year = :year 
+                    AND LOWER(TRIM(make)) = LOWER(:make)
+                    AND LOWER(TRIM(model)) = LOWER(:model)
+                    AND LOWER(TRIM(trim)) = LOWER(:trim)
+                    LIMIT 1";
+            
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                ':year' => $year,
+                ':make' => $make,
+                ':model' => $model,
+                ':trim' => $trim
+            ]);
+            
+            $result = $stmt->fetch();
+            if ($result) {
+                $result['verified'] = true; // Exact match with trim
+                return $result;
+            }
+        }
+        
+        // Fallback: match without trim (most common tire size)
         $sql = "SELECT * FROM vehicle_fitment 
                 WHERE year = :year 
                 AND LOWER(TRIM(make)) = LOWER(:make)
-                AND LOWER(TRIM(model)) = LOWER(:model)";
+                AND LOWER(TRIM(model)) = LOWER(:model)
+                AND (trim IS NULL OR trim = '')
+                LIMIT 1";
         
-        $params = [
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([
             ':year' => $year,
             ':make' => $make,
             ':model' => $model
-        ];
-
-        if ($trim !== null && $trim !== '') {
-            $trim = trim($trim);
-            $sql .= " AND LOWER(TRIM(trim)) = LOWER(:trim)";
-            $params[':trim'] = $trim;
-        }
-
-        $sql .= " LIMIT 1";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        ]);
         
         $result = $stmt->fetch();
-        return $result ?: null;
+        if ($result) {
+            $result['verified'] = false; // Fallback match (estimated)
+            return $result;
+        }
+        
+        return null;
     }
 
     /**
