@@ -545,7 +545,51 @@ function tireFitmentApp() {
         cancelAddVehicle() {
             this.showAddVehicleForm = false;
             this.vehicleToAdd = null;
+            this.aiDetecting = false;
             this.errorMessage = '';
+        },
+        
+        // Detect tire sizes using AI
+        async detectTireSizesWithAI() {
+            if (!this.vehicleToAdd) {
+                return;
+            }
+            
+            try {
+                this.aiDetecting = true;
+                this.errorMessage = '';
+                
+                // Call VIN API again to get AI tire sizes (it will use cached vehicle data)
+                const vinResponse = await fetch(this.getApiUrl('vin.php'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ vin: this.vinInput })
+                });
+                
+                const vinData = await vinResponse.json();
+                
+                if (vinData.success && vinData.data.tire_sizes) {
+                    const aiTireSizes = vinData.data.tire_sizes;
+                    
+                    // Update vehicleToAdd with AI-detected tire sizes
+                    this.vehicleToAdd.front_tire = aiTireSizes.front_tire || '';
+                    this.vehicleToAdd.rear_tire = aiTireSizes.rear_tire || '';
+                    this.vehicleToAdd.ai_front_tire = aiTireSizes.front_tire || null;
+                    this.vehicleToAdd.ai_rear_tire = aiTireSizes.rear_tire || null;
+                    
+                    console.log('AI tire sizes detected:', aiTireSizes);
+                } else {
+                    // AI tire sizes not available
+                    this.errorMessage = 'AI tire size detection is temporarily unavailable. Please enter tire sizes manually or check your vehicle\'s door placard.';
+                }
+            } catch (error) {
+                console.error('AI detection error:', error);
+                this.errorMessage = 'Failed to detect tire sizes with AI. Please enter tire sizes manually.';
+            } finally {
+                this.aiDetecting = false;
+            }
         },
         
         // Safe getter for vehicleToAdd properties
