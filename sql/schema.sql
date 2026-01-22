@@ -20,7 +20,20 @@ CREATE TABLE IF NOT EXISTS vehicle_fitment (
     INDEX idx_make (make),
     INDEX idx_model (model),
     INDEX idx_year_make_model (year, make, model),
-    INDEX idx_trim (trim)
+    INDEX idx_trim (trim),
+    INDEX idx_year_make_model_fallback (year, make, model)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Vehicle cache table (stores decoded VIN data to reduce NHTSA API calls)
+CREATE TABLE IF NOT EXISTS vehicle_cache (
+    vin VARCHAR(17) PRIMARY KEY,
+    year YEAR NOT NULL,
+    make VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    trim VARCHAR(150) DEFAULT NULL,
+    body_class VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cache_year_make_model (year, make, model)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tires inventory table

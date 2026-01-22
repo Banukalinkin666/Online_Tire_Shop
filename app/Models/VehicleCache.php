@@ -55,14 +55,30 @@ class VehicleCache
     {
         // Check if table exists (for backward compatibility)
         try {
-            $sql = "INSERT INTO vehicle_cache (vin, year, make, model, trim, body_class) 
-                    VALUES (:vin, :year, :make, :model, :trim, :body_class)
-                    ON DUPLICATE KEY UPDATE 
-                        year = VALUES(year),
-                        make = VALUES(make),
-                        model = VALUES(model),
-                        trim = VALUES(trim),
-                        body_class = VALUES(body_class)";
+            // Detect database type
+            $dbType = $_ENV['DB_TYPE'] ?? $_SERVER['DB_TYPE'] ?? 'mysql';
+            
+            if ($dbType === 'pgsql' || $dbType === 'postgresql') {
+                // PostgreSQL syntax
+                $sql = "INSERT INTO vehicle_cache (vin, year, make, model, trim, body_class) 
+                        VALUES (:vin, :year, :make, :model, :trim, :body_class)
+                        ON CONFLICT (vin) DO UPDATE 
+                            SET year = EXCLUDED.year,
+                                make = EXCLUDED.make,
+                                model = EXCLUDED.model,
+                                trim = EXCLUDED.trim,
+                                body_class = EXCLUDED.body_class";
+            } else {
+                // MySQL syntax
+                $sql = "INSERT INTO vehicle_cache (vin, year, make, model, trim, body_class) 
+                        VALUES (:vin, :year, :make, :model, :trim, :body_class)
+                        ON DUPLICATE KEY UPDATE 
+                            year = VALUES(year),
+                            make = VALUES(make),
+                            model = VALUES(model),
+                            trim = VALUES(trim),
+                            body_class = VALUES(body_class)";
+            }
 
             $stmt = $this->db->prepare($sql);
             return $stmt->execute([
