@@ -349,9 +349,10 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 <span x-show="results.fitment.verified === false" class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">⚠ Estimated</span>
                                 <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
                             </div>
-                            <div x-show="results.fitment.is_staggered">
+                            <div>
                                 <span class="text-sm font-medium text-gray-600">Rear Tires:</span>
-                                <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.rear_tire"></span>
+                                <span class="ml-2 text-lg font-semibold text-gray-900" x-text="results.fitment.rear_tire || results.fitment.front_tire"></span>
+                                <span x-show="!results.fitment.is_staggered" class="ml-2 text-xs text-gray-500 italic">(Same as front)</span>
                                 <span x-show="results.fitment.verified === true" class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded-full">✓ Verified</span>
                                 <span x-show="results.fitment.verified === false" class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">⚠ Estimated</span>
                                 <span x-show="results.fitment.notes && results.fitment.notes.includes('AI')" class="ml-2 text-xs text-green-600 font-medium">(AI Detected)</span>
