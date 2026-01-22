@@ -49,7 +49,7 @@ header('Content-Type: text/html; charset=utf-8');
     }
     
     if ($isAvailable) {
-        echo "<h2>2. Testing Models</h2>";
+        echo "<h2>2. Testing Models Directly</h2>";
         echo "<p class='info'>Testing different Gemini models to find one that works...</p>";
         
         // Test with a simple vehicle
@@ -59,8 +59,14 @@ header('Content-Type: text/html; charset=utf-8');
         
         echo "<p>Testing: $testYear $testMake $testModel</p>";
         
+        // Use reflection to call the private method directly for testing
         try {
-            $result = $aiService->getTireSizesFromAI($testYear, $testMake, $testModel);
+            $reflection = new ReflectionClass($aiService);
+            $method = $reflection->getMethod('getTireSizesFromGemini');
+            $method->setAccessible(true);
+            
+            echo "<p class='info'>Calling Gemini API directly (this will show actual errors)...</p>";
+            $result = $method->invoke($aiService, $testYear, $testMake, $testModel);
             
             if ($result) {
                 echo "<p class='success'>✓ AI Service Working!</p>";
@@ -71,11 +77,33 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "</pre>";
             } else {
                 echo "<p class='error'>✗ AI Service returned null</p>";
-                echo "<p>Check Render logs for detailed error messages.</p>";
             }
         } catch (Exception $e) {
-            echo "<p class='error'>✗ Error: " . htmlspecialchars($e->getMessage()) . "</p>";
-            echo "<p>Check Render logs for more details.</p>";
+            echo "<p class='error'>✗ Exception Caught:</p>";
+            echo "<pre style='background: #3e1e1e; color: #f48771; padding: 15px; border-radius: 4px;'>";
+            echo "Error: " . htmlspecialchars($e->getMessage()) . "\n\n";
+            echo "Stack Trace:\n" . htmlspecialchars($e->getTraceAsString());
+            echo "</pre>";
+            echo "<p class='info'>This error shows why the AI service is failing. Check the error message above.</p>";
+        } catch (Throwable $e) {
+            echo "<p class='error'>✗ Fatal Error: " . htmlspecialchars($e->getMessage()) . "</p>";
+        }
+        
+        // Also test the public method
+        echo "<h2>2b. Testing Public Method (with exception handling)</h2>";
+        try {
+            $result = $aiService->getTireSizesFromAI($testYear, $testMake, $testModel);
+            if ($result) {
+                echo "<p class='success'>✓ Public method works!</p>";
+                echo "<pre>";
+                print_r($result);
+                echo "</pre>";
+            } else {
+                echo "<p class='error'>✗ Public method returned null</p>";
+                echo "<p class='info'>The public method catches exceptions and returns null. Check section 2 above for the actual error.</p>";
+            }
+        } catch (Exception $e) {
+            echo "<p class='error'>✗ Public method exception: " . htmlspecialchars($e->getMessage()) . "</p>";
         }
     }
     
