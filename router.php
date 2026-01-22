@@ -22,32 +22,32 @@ if (strpos($uri, '/api/') === 0) {
     }
     
     // Build file path - use direct path check (more reliable in Docker)
-    $file = __DIR__ . '/api/' . $apiPath;
+    $apiDir = __DIR__ . '/api';
+    $file = $apiDir . '/' . $apiPath;
     
-    // Try multiple path formats for cross-platform compatibility
-    $possiblePaths = [
-        $file,
-        __DIR__ . DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR . $apiPath,
-        realpath(__DIR__ . '/api/' . $apiPath) ?: null,
-    ];
+    // Normalize path (handle both / and \ separators)
+    $file = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $file);
+    $apiDir = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $apiDir);
     
-    $foundFile = null;
-    foreach ($possiblePaths as $testPath) {
-        if ($testPath && file_exists($testPath) && is_file($testPath)) {
-            // Additional security: ensure file is actually in api directory
-            $normalizedPath = str_replace(['\\', '/'], '/', $testPath);
-            $normalizedApiDir = str_replace(['\\', '/'], '/', __DIR__ . '/api');
-            if (strpos($normalizedPath, $normalizedApiDir) === 0) {
-                $foundFile = $testPath;
-                break;
-            }
+    // Security: ensure the resolved path is still within api directory
+    $resolvedFile = realpath($file);
+    $resolvedApiDir = realpath($apiDir);
+    
+    // Use resolved path if available, otherwise use original
+    $finalFile = $resolvedFile ?: $file;
+    $finalApiDir = $resolvedApiDir ?: $apiDir;
+    
+    // Check if file exists and is within api directory
+    if (file_exists($finalFile) && is_file($finalFile)) {
+        // Security check: ensure file is in api directory
+        $normalizedFile = str_replace(['\\', '/'], '/', $finalFile);
+        $normalizedApiDir = str_replace(['\\', '/'], '/', $finalApiDir);
+        
+        if (strpos($normalizedFile, $normalizedApiDir) === 0) {
+            $_SERVER['SCRIPT_NAME'] = $uri;
+            require $finalFile;
+            return true;
         }
-    }
-    
-    if ($foundFile) {
-        $_SERVER['SCRIPT_NAME'] = $uri;
-        require $foundFile;
-        return true;
     }
     
     // API file not found - return 404 with debug info
