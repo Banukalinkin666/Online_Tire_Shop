@@ -552,6 +552,7 @@ function tireFitmentApp() {
         // Detect tire sizes using AI
         async detectTireSizesWithAI() {
             if (!this.vehicleToAdd) {
+                console.error('vehicleToAdd is null');
                 return;
             }
             
@@ -559,19 +560,30 @@ function tireFitmentApp() {
                 this.aiDetecting = true;
                 this.errorMessage = '';
                 
-                // Call VIN API again to get AI tire sizes (it will use cached vehicle data)
-                const vinResponse = await fetch(this.getApiUrl('vin.php'), {
+                console.log('Calling AI detection for:', this.vehicleToAdd);
+                
+                // Call dedicated AI detection endpoint
+                const aiResponse = await fetch(this.getApiUrl('detect-tire-sizes.php'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ vin: this.vinInput })
+                    body: JSON.stringify({
+                        year: this.vehicleToAdd.year,
+                        make: this.vehicleToAdd.make,
+                        model: this.vehicleToAdd.model,
+                        trim: this.vehicleToAdd.trim || '',
+                        body_class: this.vehicleToAdd.body_class || '',
+                        drive_type: this.vehicleToAdd.drive_type || ''
+                    })
                 });
                 
-                const vinData = await vinResponse.json();
+                const aiData = await aiResponse.json();
                 
-                if (vinData.success && vinData.data.tire_sizes) {
-                    const aiTireSizes = vinData.data.tire_sizes;
+                console.log('AI Detection Response:', aiData);
+                
+                if (aiData.success && aiData.data) {
+                    const aiTireSizes = aiData.data;
                     
                     // Update vehicleToAdd with AI-detected tire sizes
                     this.vehicleToAdd.front_tire = aiTireSizes.front_tire || '';
@@ -579,10 +591,10 @@ function tireFitmentApp() {
                     this.vehicleToAdd.ai_front_tire = aiTireSizes.front_tire || null;
                     this.vehicleToAdd.ai_rear_tire = aiTireSizes.rear_tire || null;
                     
-                    console.log('AI tire sizes detected:', aiTireSizes);
+                    console.log('AI tire sizes detected and applied:', aiTireSizes);
                 } else {
                     // AI tire sizes not available
-                    this.errorMessage = 'AI tire size detection is temporarily unavailable. Please enter tire sizes manually or check your vehicle\'s door placard.';
+                    this.errorMessage = aiData.message || 'AI tire size detection is temporarily unavailable. Please enter tire sizes manually or check your vehicle\'s door placard.';
                 }
             } catch (error) {
                 console.error('AI detection error:', error);
