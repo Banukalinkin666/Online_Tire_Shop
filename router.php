@@ -103,6 +103,16 @@ if ($uri === '/import-schema.php') {
     }
 }
 
+// Route test-ai script
+if ($uri === '/test-ai.php') {
+    $file = __DIR__ . '/public/test-ai.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/test-ai.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
