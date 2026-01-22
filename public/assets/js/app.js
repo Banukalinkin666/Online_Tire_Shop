@@ -12,6 +12,7 @@ function tireFitmentApp() {
         errorMessage: '',
         showAddVehicleForm: false,
         vehicleToAdd: null, // Will be initialized when needed
+        aiDetecting: false, // AI tire size detection in progress
         
         // VIN search
         vinInput: '',

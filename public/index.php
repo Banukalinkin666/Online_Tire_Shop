@@ -245,6 +245,33 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 </div>
                                 <p class="text-xs text-green-600 mt-2 italic">These sizes are pre-filled below. Please verify on your vehicle's tire sidewall or door jamb.</p>
                             </div>
+                            
+                            <!-- AI Detection Button (when tire sizes not available) -->
+                            <div x-show="vehicleToAdd && !vehicleToAdd.ai_front_tire && !aiDetecting" class="mt-4 pt-4 border-t border-blue-100">
+                                <p class="text-sm font-semibold text-gray-700 mb-2">🤖 Need help finding tire sizes?</p>
+                                <button 
+                                    @click="detectTireSizesWithAI()"
+                                    :disabled="loading"
+                                    class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-md hover:from-blue-600 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-md flex items-center justify-center gap-2"
+                                >
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                    </svg>
+                                    <span>Detect Tire Sizes with AI</span>
+                                </button>
+                                <p class="text-xs text-gray-500 mt-2 text-center">Our AI will analyze your vehicle and suggest the correct tire sizes</p>
+                            </div>
+                            
+                            <!-- AI Detecting Loading State -->
+                            <div x-show="aiDetecting" class="mt-4 pt-4 border-t border-blue-100">
+                                <div class="flex items-center justify-center gap-3 py-4">
+                                    <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium text-blue-600">AI is detecting tire sizes...</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div>
