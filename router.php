@@ -24,8 +24,12 @@ if (strpos($uri, '/api/') === 0) {
     // Build file path - use direct path check (more reliable in Docker)
     $file = __DIR__ . '/api/' . $apiPath;
     
-    // Simple check: file exists and path contains /api/
-    if (file_exists($file) && is_file($file) && strpos($file, '/api/') !== false) {
+    // Normalize path separators for cross-platform compatibility
+    $file = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $file);
+    $file = realpath($file) ?: $file; // Try to resolve real path, fallback to original
+    
+    // Simple check: file exists and path contains /api/ or \api\
+    if (file_exists($file) && is_file($file) && (strpos($file, '/api/') !== false || strpos($file, '\\api\\') !== false || strpos($file, DIRECTORY_SEPARATOR . 'api' . DIRECTORY_SEPARATOR) !== false)) {
         $_SERVER['SCRIPT_NAME'] = $uri;
         require $file;
         return true;
@@ -43,7 +47,8 @@ if (strpos($uri, '/api/') === 0) {
             'resolved_file' => $file,
             'file_exists' => file_exists($file),
             'is_file' => is_file($file),
-            'api_dir_exists' => is_dir(__DIR__ . '/api')
+            'api_dir_exists' => is_dir(__DIR__ . '/api'),
+            'api_dir_contents' => is_dir(__DIR__ . '/api') ? implode(', ', array_slice(scandir(__DIR__ . '/api'), 2)) : 'N/A'
         ]
     ]);
     return true;
