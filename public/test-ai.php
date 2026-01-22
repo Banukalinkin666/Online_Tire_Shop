@@ -66,7 +66,8 @@ header('Content-Type: text/html; charset=utf-8');
             $method->setAccessible(true);
             
             echo "<p class='info'>Calling Gemini API directly (this will show actual errors)...</p>";
-            $result = $method->invoke($aiService, $testYear, $testMake, $testModel);
+            // Method requires 6 arguments: year, make, model, trim, bodyClass, driveType
+            $result = $method->invoke($aiService, $testYear, $testMake, $testModel, null, null, null);
             
             if ($result) {
                 echo "<p class='success'>✓ AI Service Working!</p>";
