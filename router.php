@@ -47,21 +47,34 @@ if (strpos($uri, '/api/') === 0) {
     }
     
     // API file not found - return 404 with debug info
+    $apiDir = __DIR__ . '/api';
+    $apiDirAlt = __DIR__ . DIRECTORY_SEPARATOR . 'api';
+    $apiFiles = [];
+    if (is_dir($apiDir)) {
+        $apiFiles = array_slice(scandir($apiDir), 2);
+    } elseif (is_dir($apiDirAlt)) {
+        $apiFiles = array_slice(scandir($apiDirAlt), 2);
+    }
+    
     http_response_code(404);
     header('Content-Type: application/json');
     echo json_encode([
         'success' => false,
         'message' => 'API endpoint not found: ' . $uri,
+        'errors' => [],
         'debug' => [
             'requested_uri' => $uri,
             'api_path' => $apiPath,
-            'resolved_file' => $file,
+            'tested_file' => $file,
+            'tested_file_alt' => $fileAlt ?? 'N/A',
             'file_exists' => file_exists($file),
-            'is_file' => is_file($file),
-            'api_dir_exists' => is_dir(__DIR__ . '/api'),
-            'api_dir_contents' => is_dir(__DIR__ . '/api') ? implode(', ', array_slice(scandir(__DIR__ . '/api'), 2)) : 'N/A'
+            'file_alt_exists' => isset($fileAlt) ? file_exists($fileAlt) : false,
+            'api_dir_exists' => is_dir($apiDir) || is_dir($apiDirAlt),
+            'api_dir_path' => is_dir($apiDir) ? $apiDir : (is_dir($apiDirAlt) ? $apiDirAlt : 'NOT FOUND'),
+            'api_dir_contents' => implode(', ', $apiFiles),
+            'current_dir' => __DIR__
         ]
-    ]);
+    ], JSON_PRETTY_PRINT);
     return true;
 }
 
