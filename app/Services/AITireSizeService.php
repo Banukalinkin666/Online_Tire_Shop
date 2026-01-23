@@ -96,21 +96,22 @@ class AITireSizeService
             $vehicleInfo .= " - $driveType";
         }
         
-        $prompt = "What are the OEM (original equipment) tire sizes for a $vehicleInfo?
+        $prompt = "What are the OEM tire sizes for a $vehicleInfo?
 
-IMPORTANT: Respond with ONLY valid JSON, no other text.
+CRITICAL: You MUST return a COMPLETE, valid JSON object. Do NOT truncate or leave it incomplete.
 
-Required format:
+Return ONLY this JSON format (complete the entire object):
 {
   \"front_tire\": \"225/65R17\",
-  \"rear_tire\": \"225/65R17\" or null if same size
+  \"rear_tire\": null
 }
 
 Rules:
-- Use standard tire size format: WIDTH/ASPECTRATIO RIM (e.g., 225/65R17)
-- If front and rear are the same, set rear_tire to null
-- If different sizes (staggered), provide both
-- Return COMPLETE, valid JSON only - no partial responses";
+1. Use format: WIDTH/ASPECTRATIO RIM (e.g., 225/65R17, 245/40R18)
+2. If same size front/rear: set rear_tire to null
+3. If different sizes: provide both values
+4. MUST be complete valid JSON - close all quotes and braces
+5. NO markdown code blocks, NO extra text, ONLY the JSON object";
         
         // First, try to get available models dynamically
         $availableModels = $this->listAvailableModels();
@@ -152,7 +153,7 @@ Rules:
                     ],
                     'generationConfig' => [
                         'temperature' => 0.1,
-                        'maxOutputTokens' => 300,
+                        'maxOutputTokens' => 500,
                         'topP' => 0.8,
                         'topK' => 40
                     ]
@@ -260,10 +261,25 @@ Rules:
             error_log("✓ Successfully parsed JSON from full content");
         } else {
             // Method 2: Extract JSON from markdown code blocks (```json ... ```)
-            if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
-                $tireData = json_decode($matches[1], true);
-                if (json_last_error() === JSON_ERROR_NONE && isset($tireData['front_tire'])) {
-                    error_log("✓ Successfully extracted JSON from markdown code block");
+            // Handle both complete and incomplete markdown blocks
+            if (preg_match('/```(?:json)?\s*(\{.*?)(?:\}\s*```|$)/s', $content, $matches)) {
+                $jsonStr = trim($matches[1]);
+                // If incomplete, try to complete it
+                if (!str_ends_with($jsonStr, '}')) {
+                    // Check if front_tire value is incomplete
+                    if (preg_match('/"front_tire"\s*:\s*"([^"]*)$/', $jsonStr, $tireMatch)) {
+                        // If we have a partial value, try to extract it
+                        if (!empty($tireMatch[1]) && preg_match('/^\d{3}\/\d{2}R\d{2}$/', $tireMatch[1])) {
+                            error_log("⚠️ Incomplete markdown JSON, but extracted front_tire: " . $tireMatch[1]);
+                            $tireData = ['front_tire' => $tireMatch[1], 'rear_tire' => null];
+                        }
+                    }
+                } else {
+                    // Complete JSON in markdown
+                    $tireData = json_decode($jsonStr, true);
+                    if (json_last_error() === JSON_ERROR_NONE && isset($tireData['front_tire'])) {
+                        error_log("✓ Successfully extracted JSON from markdown code block");
+                    }
                 }
             }
             
