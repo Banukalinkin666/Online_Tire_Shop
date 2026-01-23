@@ -18,7 +18,8 @@ class AITireSizeService
     // Try v1 endpoint first, fallback to v1beta if needed
     private const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com';
     // Try these models in order (fallback if ListModels fails)
-    private const GEMINI_MODELS = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+    // Updated to use models that are more likely to be available
+    private const GEMINI_MODELS = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro-latest', 'gemini-1.5-pro'];
     private const HUGGINGFACE_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
     
     private ?string $geminiKey;
