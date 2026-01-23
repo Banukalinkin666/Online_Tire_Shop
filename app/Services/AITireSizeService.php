@@ -320,12 +320,16 @@ No additional text, only valid JSON.";
                         }
                     }
                 }
+                error_log("Found " . count($models) . " available Gemini models: " . implode(', ', $models));
                 return $models;
+            } else {
+                error_log("ListModels API returned HTTP $httpCode: " . substr($response ?? '', 0, 200));
             }
         } catch (Exception $e) {
-            error_log("Failed to list models: " . $e->getMessage());
+            error_log("Failed to list Gemini models: " . $e->getMessage());
         }
         
+        // Fallback to empty array - will use hardcoded GEMINI_MODELS
         return [];
     }
     
