@@ -102,9 +102,22 @@ If different front and rear sizes (staggered), provide both. If same, provide on
 Respond in JSON only: {\"front_tire\": \"225/65R17\", \"rear_tire\": \"225/65R17\" or null if same}
 No additional text, only valid JSON.";
         
+        // First, try to get available models dynamically
+        $availableModels = $this->listAvailableModels();
+        $modelsToTry = !empty($availableModels) ? $availableModels : self::GEMINI_MODELS;
+        
+        if (!empty($availableModels)) {
+            error_log("Using dynamically discovered models: " . implode(', ', $availableModels));
+        } else {
+            error_log("ListModels failed, using fallback models: " . implode(', ', self::GEMINI_MODELS));
+        }
+        
         // Try different models and endpoints until one works
         $lastError = null;
-        foreach (self::GEMINI_MODELS as $model) {
+        $httpCode = 0;
+        $response = null;
+        
+        foreach ($modelsToTry as $model) {
             // Try v1 endpoint first
             $url = self::GEMINI_API_BASE . '/v1/models/' . $model . ':generateContent?key=' . urlencode($this->geminiKey);
             error_log("Trying Gemini model: $model with v1 endpoint");
