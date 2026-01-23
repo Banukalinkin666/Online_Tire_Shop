@@ -96,11 +96,21 @@ class AITireSizeService
             $vehicleInfo .= " - $driveType";
         }
         
-        $prompt = "What are the OEM (original equipment) tire sizes for a $vehicleInfo? 
-Provide ONLY the tire sizes in standard format (e.g., 225/65R17).
-If different front and rear sizes (staggered), provide both. If same, provide only front.
-Respond in JSON only: {\"front_tire\": \"225/65R17\", \"rear_tire\": \"225/65R17\" or null if same}
-No additional text, only valid JSON.";
+        $prompt = "What are the OEM (original equipment) tire sizes for a $vehicleInfo?
+
+IMPORTANT: Respond with ONLY valid JSON, no other text.
+
+Required format:
+{
+  \"front_tire\": \"225/65R17\",
+  \"rear_tire\": \"225/65R17\" or null if same size
+}
+
+Rules:
+- Use standard tire size format: WIDTH/ASPECTRATIO RIM (e.g., 225/65R17)
+- If front and rear are the same, set rear_tire to null
+- If different sizes (staggered), provide both
+- Return COMPLETE, valid JSON only - no partial responses";
         
         // First, try to get available models dynamically
         $availableModels = $this->listAvailableModels();
@@ -141,8 +151,10 @@ No additional text, only valid JSON.";
                         ]
                     ],
                     'generationConfig' => [
-                        'temperature' => 0.3,
-                        'maxOutputTokens' => 150
+                        'temperature' => 0.1,
+                        'maxOutputTokens' => 300,
+                        'topP' => 0.8,
+                        'topK' => 40
                     ]
                 ]),
                 CURLOPT_TIMEOUT => 10,
