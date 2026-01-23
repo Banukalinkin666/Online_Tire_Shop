@@ -70,8 +70,25 @@ header('Content-Type: text/html; charset=utf-8');
             $action = $_POST['action'] ?? '';
             
             if ($action === 'populate' && $startYear > 0 && $endYear > 0 && $endYear >= $startYear) {
+                // Set longer execution time
+                set_time_limit(3600); // 1 hour
+                ini_set('max_execution_time', 3600);
+                
                 echo "<div class='info'>Starting population for years {$startYear} to {$endYear}...</div>";
+                echo "<div class='info' style='background: #fff3cd;'>⏱️ This may take 30-60 minutes. Keep this page open. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
                 echo "<div class='progress'><div class='progress-bar' id='progress' style='width: 0%'>0%</div></div>";
+                echo "<div id='status-log' style='max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;'></div>";
+                echo "<script>
+                    function updateStatus(message) {
+                        const log = document.getElementById('status-log');
+                        const time = new Date().toLocaleTimeString();
+                        log.innerHTML += '<div style=\"padding: 2px 0; font-size: 12px;\">[' + time + '] ' + message + '</div>';
+                        log.scrollTop = log.scrollHeight;
+                        document.getElementById('last-update').textContent = time;
+                    }
+                    updateStatus('Script started');
+                </script>";
+                flush();
                 
                 $totalYears = $endYear - $startYear + 1;
                 $currentYear = 0;
@@ -81,23 +98,60 @@ header('Content-Type: text/html; charset=utf-8');
                 
                 // Get all makes first (once, not per year)
                 echo "<div class='info'>Fetching all makes from NHTSA...</div>";
-                $allMakes = $nhtsaService->getMakesForYear($startYear);
-                echo "<div class='success'>Found " . count($allMakes) . " makes</div>";
+                echo "<script>updateStatus('Fetching makes from NHTSA API...');</script>";
+                flush();
+                
+                try {
+                    $allMakes = $nhtsaService->getMakesForYear($startYear);
+                    echo "<div class='success'>Found " . count($allMakes) . " makes</div>";
+                    echo "<script>updateStatus('Found " . count($allMakes) . " makes');</script>";
+                    flush();
+                } catch (Exception $e) {
+                    echo "<div class='error'>Failed to fetch makes: " . htmlspecialchars($e->getMessage()) . "</div>";
+                    echo "<script>updateStatus('ERROR: Failed to fetch makes');</script>";
+                    flush();
+                    throw $e;
+                }
+                
+                // Disable output buffering for real-time updates
+                if (ob_get_level()) {
+                    ob_end_flush();
+                }
+                ini_set('output_buffering', 'off');
+                ini_set('zlib.output_compression', false);
                 
                 // Process each year
+                $makeIndex = 0;
+                $totalMakes = count($allMakes);
+                
                 for ($year = $startYear; $year <= $endYear; $year++) {
                     $currentYear++;
                     $progress = round(($currentYear / $totalYears) * 100);
-                    echo "<div class='info'>Processing year {$year} ({$currentYear}/{$totalYears})...</div>";
+                    echo "<div class='info' id='year-{$year}'>Processing year {$year} ({$currentYear}/{$totalYears})... <span id='make-progress-{$year}'>Make 0/{$totalMakes}</span></div>";
                     echo "<script>document.getElementById('progress').style.width = '{$progress}%'; document.getElementById('progress').textContent = '{$progress}%';</script>";
                     flush();
-                    ob_flush();
+                    if (function_exists('fastcgi_finish_request')) {
+                        fastcgi_finish_request();
+                    }
                     
                     $yearInserted = 0;
                     $yearSkipped = 0;
+                    $makeIndex = 0;
                     
                     // For each make, get models
-                    foreach ($allMakes as $make) {
+                    foreach ($allMakes as $makeIndex => $make) {
+                        $makeIndex++;
+                        $makeProgress = round(($makeIndex / $totalMakes) * 100);
+                        
+                        // Update make progress every 10 makes or at start
+                        if ($makeIndex % 10 === 0 || $makeIndex === 1) {
+                            echo "<script>
+                                document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
+                                updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
+                            </script>";
+                            flush();
+                        }
+                        
                         try {
                             $models = $nhtsaService->getModelsForMakeYear($make, $year);
                             
@@ -130,16 +184,20 @@ header('Content-Type: text/html; charset=utf-8');
                                 }
                             }
                             
-                            // Small delay to avoid rate limiting
-                            usleep(100000); // 0.1 second
+                            // Small delay to avoid rate limiting (reduced for faster processing)
+                            usleep(50000); // 0.05 second
                             
                         } catch (Exception $e) {
-                            $errors[] = "Error fetching models for {$year} {$make}: " . $e->getMessage();
+                            $errorMsg = "Error fetching models for {$year} {$make}: " . $e->getMessage();
+                            $errors[] = $errorMsg;
+                            echo "<div class='warning'>⚠️ {$errorMsg}</div>";
+                            flush();
                             continue;
                         }
                     }
                     
-                    echo "<div class='success'>Year {$year}: Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
+                    echo "<div class='success' id='year-result-{$year}'>✓ Year {$year} Complete: Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
+                    flush();
                 }
                 
                 echo "<div class='progress'><div class='progress-bar' style='width: 100%'>100%</div></div>";
