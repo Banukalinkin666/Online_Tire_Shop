@@ -210,14 +210,15 @@ No additional text, only valid JSON.";
                 }
             }
             
-            $lastError = "HTTP $httpCode: " . substr($response, 0, 200);
+            $lastError = "HTTP $httpCode: " . substr($response ?? '', 0, 200);
             error_log("Model $model failed: $lastError");
         }
         
         // If we get here, all models failed
         if ($httpCode !== 200) {
-            error_log("All Gemini models failed. Last error: $lastError");
-            throw new Exception("Gemini API returned HTTP code: " . $httpCode . " - " . $lastError);
+            $errorMsg = $lastError ?? 'Unknown error - no models available';
+            error_log("All Gemini models failed. Last error: $errorMsg");
+            throw new Exception("Gemini API returned HTTP code: " . $httpCode . " - " . $errorMsg);
         }
         
         
