@@ -296,11 +296,28 @@ Rules:
             }
         }
         
-        // If still no valid data, log the full content for debugging
+        // If still no valid data, try to recover from incomplete JSON
         if (!$tireData || !isset($tireData['front_tire'])) {
-            error_log("❌ Failed to extract valid JSON. Full content: " . $content);
-            error_log("JSON decode error: " . json_last_error_msg());
-            throw new Exception("Failed to parse AI tire size JSON: " . json_last_error_msg() . ". Content received: " . substr($content, 0, 300));
+            // Check if we got partial data (incomplete JSON)
+            if (strpos($content, 'front_tire') !== false) {
+                error_log("⚠️ Incomplete JSON detected. Attempting to extract partial data...");
+                // Try to extract just the front_tire value using regex
+                if (preg_match('/"front_tire"\s*:\s*"([^"]+)"/', $content, $matches)) {
+                    $frontTire = trim($matches[1]);
+                    if (!empty($frontTire) && preg_match('/^\d{3}\/\d{2}R\d{2}$/', $frontTire)) {
+                        error_log("✓ Extracted front_tire from incomplete JSON: " . $frontTire);
+                        $tireData = ['front_tire' => $frontTire, 'rear_tire' => null];
+                    }
+                }
+            }
+            
+            // If still no valid data, throw error with full content
+            if (!$tireData || !isset($tireData['front_tire'])) {
+                error_log("❌ Failed to extract valid JSON. Full content: " . $content);
+                error_log("Content length: " . strlen($content));
+                error_log("JSON decode error: " . json_last_error_msg());
+                throw new Exception("Failed to parse AI tire size JSON: " . json_last_error_msg() . ". Content received: " . substr($content, 0, 500));
+            }
         }
         
         if (!$tireData || !isset($tireData['front_tire'])) {
