@@ -82,6 +82,13 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     >
                         Search by Year/Make/Model
                     </button>
+                    <button 
+                        @click="searchMode = 'ai'; resetForm()" 
+                        :class="searchMode === 'ai' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
+                        class="px-4 py-2 font-medium focus:outline-none"
+                    >
+                        🤖 AI Direct Search
+                    </button>
                 </div>
 
                 <!-- VIN Search Form -->

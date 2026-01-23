@@ -6,7 +6,7 @@
 function tireFitmentApp() {
     return {
         // State
-        searchMode: 'vin', // 'vin' or 'ymm'
+        searchMode: 'vin', // 'vin', 'ymm', or 'ai'
         loading: false,
         showResults: false,
         errorMessage: '',
@@ -26,6 +26,12 @@ function tireFitmentApp() {
         selectedMake: '',
         selectedModel: '',
         selectedTrim: '',
+        
+        // AI Direct Search
+        aiYear: '',
+        aiMake: '',
+        aiModel: '',
+        aiTrim: '',
         
         // Results
         results: {
