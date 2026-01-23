@@ -203,6 +203,95 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     </button>
                 </div>
 
+                <!-- AI Direct Search Form -->
+                <div x-show="searchMode === 'ai'" class="space-y-4">
+                    <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-4 rounded">
+                        <p class="text-sm text-purple-800">
+                            <strong>🤖 AI Direct Search:</strong> Enter your vehicle details manually and get instant tire size detection using AI. No database lookup required.
+                        </p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Year (Manual Input) -->
+                        <div>
+                            <label for="aiYear" class="block text-sm font-medium text-gray-700 mb-2">
+                                Year <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="number" 
+                                id="aiYear" 
+                                x-model="aiYear"
+                                min="1900"
+                                max="2100"
+                                placeholder="e.g., 2020"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                :disabled="loading || aiDetecting"
+                            />
+                        </div>
+
+                        <!-- Make (Manual Input) -->
+                        <div>
+                            <label for="aiMake" class="block text-sm font-medium text-gray-700 mb-2">
+                                Make <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="aiMake" 
+                                x-model="aiMake"
+                                placeholder="e.g., Toyota"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                :disabled="loading || aiDetecting"
+                            />
+                        </div>
+
+                        <!-- Model (Manual Input) -->
+                        <div>
+                            <label for="aiModel" class="block text-sm font-medium text-gray-700 mb-2">
+                                Model <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="aiModel" 
+                                x-model="aiModel"
+                                placeholder="e.g., Camry"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                :disabled="loading || aiDetecting"
+                            />
+                        </div>
+
+                        <!-- Trim (Manual Input - Optional) -->
+                        <div>
+                            <label for="aiTrim" class="block text-sm font-medium text-gray-700 mb-2">
+                                Trim (Optional)
+                            </label>
+                            <input 
+                                type="text" 
+                                id="aiTrim" 
+                                x-model="aiTrim"
+                                placeholder="e.g., LE, XSE"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                                :disabled="loading || aiDetecting"
+                            />
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="searchWithAI()"
+                        :disabled="!aiYear || !aiMake || !aiModel || loading || aiDetecting"
+                        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 px-6 rounded-md hover:from-purple-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                    >
+                        <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        <svg x-show="loading || aiDetecting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-show="!loading && !aiDetecting">🤖 Find Tire Sizes with AI</span>
+                        <span x-show="loading || aiDetecting">AI is detecting tire sizes...</span>
+                    </button>
+                </div>
+
                 <!-- Error Message -->
                 <div x-show="errorMessage && !showAddVehicleForm" class="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
                     <p class="text-sm text-red-700" x-text="errorMessage"></p>
