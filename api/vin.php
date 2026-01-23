@@ -160,8 +160,14 @@ try {
     }
     
     // Unable to decode (vehicle not in NHTSA database)
-    if (strpos($message, 'Unable to decode') !== false || strpos($message, 'missing') !== false) {
-        ResponseHelper::error('Unable to decode VIN. This VIN may not be in the NHTSA database. Please try using Year/Make/Model search instead.', 404);
+    // Even if VIN decode fails, we can still help with AI if user provides vehicle info manually
+    if (strpos($message, 'Unable to decode') !== false || 
+        strpos($message, 'missing') !== false ||
+        strpos($message, 'empty') !== false ||
+        strpos($message, 'Invalid API response') !== false) {
+        
+        // Return error but suggest using YMM search with AI
+        ResponseHelper::error('Unable to decode VIN. This VIN may not be in the NHTSA database. Please use the Year/Make/Model search below - you can use AI to detect tire sizes even if the vehicle is not in our database.', 404);
     }
     
     // Generic error

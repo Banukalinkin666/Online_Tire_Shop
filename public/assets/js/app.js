@@ -199,10 +199,14 @@ function tireFitmentApp() {
                     // Check if it's a VIN validation error
                     if (vinData.message && vinData.message.includes('not valid')) {
                         this.errorMessage = 'Entered VIN is not valid. Please check the VIN and try again.';
+                        this.showAddVehicleForm = false;
                     } else {
-                        this.errorMessage = vinData.message || 'Failed to decode VIN. Please verify the VIN is correct or use Year/Make/Model search instead.';
+                        // VIN decode failed - suggest using YMM search with AI
+                        this.errorMessage = vinData.message || 'Failed to decode VIN. Please verify the VIN is correct or use Year/Make/Model search below - you can use AI to detect tire sizes!';
+                        // Switch to YMM mode to help user
+                        this.searchMode = 'ymm';
+                        this.loadYears();
                     }
-                    this.showAddVehicleForm = false;
                     return;
                 }
                 
