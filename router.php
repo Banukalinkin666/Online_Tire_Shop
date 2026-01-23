@@ -162,6 +162,16 @@ if ($uri === '/import-production-data.php') {
     }
 }
 
+// Route populate-ymm-from-nhtsa script
+if ($uri === '/populate-ymm-from-nhtsa.php') {
+    $file = __DIR__ . '/public/populate-ymm-from-nhtsa.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/populate-ymm-from-nhtsa.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';

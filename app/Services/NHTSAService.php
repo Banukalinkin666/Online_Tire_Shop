@@ -85,6 +85,132 @@ class NHTSAService
     }
 
     /**
+     * Get all makes for a specific year from NHTSA vPIC API
+     * 
+     * @param int $year Model year
+     * @return array List of makes
+     * @throws Exception If API call fails
+     */
+    public function getMakesForYear(int $year): array
+    {
+        // NHTSA vPIC API endpoint for getting makes by year
+        $url = "https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?format=json";
+        
+        // Note: The API doesn't filter by year directly, so we'll get all makes
+        // and filter by year when getting models
+        
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0'
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($error) {
+            throw new Exception("API request failed: " . $error);
+        }
+        
+        if ($httpCode !== 200) {
+            throw new Exception("API returned HTTP code: " . $httpCode);
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception("Failed to parse API response: " . json_last_error_msg());
+        }
+        
+        if (!isset($data['Results']) || !is_array($data['Results'])) {
+            throw new Exception("Invalid API response format");
+        }
+        
+        $makes = [];
+        foreach ($data['Results'] as $result) {
+            if (isset($result['MakeName']) && !empty($result['MakeName'])) {
+                $makes[] = trim($result['MakeName']);
+            }
+        }
+        
+        // Remove duplicates and sort
+        $makes = array_unique($makes);
+        sort($makes);
+        
+        return array_values($makes);
+    }
+    
+    /**
+     * Get all models for a specific make and year from NHTSA vPIC API
+     * 
+     * @param string $make Vehicle make
+     * @param int $year Model year
+     * @return array List of models
+     * @throws Exception If API call fails
+     */
+    public function getModelsForMakeYear(string $make, int $year): array
+    {
+        $make = urlencode($make);
+        $url = "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/{$make}/modelyear/{$year}?format=json";
+        
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0'
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($error) {
+            throw new Exception("API request failed: " . $error);
+        }
+        
+        if ($httpCode !== 200) {
+            // Some makes might not have models for certain years - that's okay
+            if ($httpCode === 404) {
+                return [];
+            }
+            throw new Exception("API returned HTTP code: " . $httpCode);
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception("Failed to parse API response: " . json_last_error_msg());
+        }
+        
+        if (!isset($data['Results']) || !is_array($data['Results'])) {
+            return [];
+        }
+        
+        $models = [];
+        foreach ($data['Results'] as $result) {
+            if (isset($result['Model_Name']) && !empty($result['Model_Name'])) {
+                $models[] = trim($result['Model_Name']);
+            }
+        }
+        
+        // Remove duplicates and sort
+        $models = array_unique($models);
+        sort($models);
+        
+        return array_values($models);
+    }
+    
+    /**
      * Parse NHTSA API results into structured format
      * 
      * @param array $results Raw API results
