@@ -237,19 +237,58 @@ No additional text, only valid JSON.";
         }
         
         $content = trim($data['candidates'][0]['content']['parts'][0]['text']);
-        error_log("Gemini API extracted content: " . substr($content, 0, 200));
+        error_log("Gemini API raw content (first 500 chars): " . substr($content, 0, 500));
         
-        // Extract JSON from response (in case AI adds extra text)
-        if (preg_match('/\{[^}]+\}/', $content, $matches)) {
-            $content = $matches[0];
-            error_log("Gemini API extracted JSON: " . $content);
+        // Try multiple methods to extract JSON from AI response
+        $tireData = null;
+        
+        // Method 1: Try parsing the entire content as JSON first
+        $tireData = json_decode($content, true);
+        if (json_last_error() === JSON_ERROR_NONE && isset($tireData['front_tire'])) {
+            error_log("✓ Successfully parsed JSON from full content");
+        } else {
+            // Method 2: Extract JSON from markdown code blocks (```json ... ```)
+            if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
+                $tireData = json_decode($matches[1], true);
+                if (json_last_error() === JSON_ERROR_NONE && isset($tireData['front_tire'])) {
+                    error_log("✓ Successfully extracted JSON from markdown code block");
+                }
+            }
+            
+            // Method 3: Extract JSON object (handles nested objects)
+            if (!$tireData || !isset($tireData['front_tire'])) {
+                // Find the first { and match until the closing } (handles nested objects)
+                $startPos = strpos($content, '{');
+                if ($startPos !== false) {
+                    $braceCount = 0;
+                    $endPos = $startPos;
+                    for ($i = $startPos; $i < strlen($content); $i++) {
+                        if ($content[$i] === '{') {
+                            $braceCount++;
+                        } elseif ($content[$i] === '}') {
+                            $braceCount--;
+                            if ($braceCount === 0) {
+                                $endPos = $i + 1;
+                                break;
+                            }
+                        }
+                    }
+                    if ($endPos > $startPos) {
+                        $jsonStr = substr($content, $startPos, $endPos - $startPos);
+                        $tireData = json_decode($jsonStr, true);
+                        if (json_last_error() === JSON_ERROR_NONE && isset($tireData['front_tire'])) {
+                            error_log("✓ Successfully extracted JSON using brace matching");
+                        }
+                    }
+                }
+            }
         }
         
-        $tireData = json_decode($content, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log("Tire data JSON decode error: " . json_last_error_msg() . ", Content: " . $content);
-            throw new Exception("Failed to parse AI tire size JSON: " . json_last_error_msg());
+        // If still no valid data, log the full content for debugging
+        if (!$tireData || !isset($tireData['front_tire'])) {
+            error_log("❌ Failed to extract valid JSON. Full content: " . $content);
+            error_log("JSON decode error: " . json_last_error_msg());
+            throw new Exception("Failed to parse AI tire size JSON: " . json_last_error_msg() . ". Content received: " . substr($content, 0, 300));
         }
         
         if (!$tireData || !isset($tireData['front_tire'])) {
