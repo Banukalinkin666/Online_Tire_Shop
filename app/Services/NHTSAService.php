@@ -190,17 +190,25 @@ class NHTSAService
         
         // Check if response is HTML instead of JSON (API sometimes returns error pages)
         $responseTrimmed = trim($response);
-        if (empty($responseTrimmed) || strpos($responseTrimmed, '<!DOCTYPE') === 0 || strpos($responseTrimmed, '<html') === 0) {
-            error_log("NHTSA API returned HTML instead of JSON for make '{$make}' year {$year}. URL: {$url}");
+        if (empty($responseTrimmed) || 
+            strpos($responseTrimmed, '<!DOCTYPE') === 0 || 
+            strpos($responseTrimmed, '<html') === 0 ||
+            strpos($responseTrimmed, '<HTML') === 0 ||
+            strpos($responseTrimmed, '<!doctype') === 0) {
+            // Silently skip - don't log as error since this is expected for some makes
             return []; // Return empty array - script continues
         }
         
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            // Log the problematic response for debugging (first 500 chars)
-            $responsePreview = substr($response, 0, 500);
-            error_log("NHTSA API JSON parse error for make '{$make}' year {$year}: " . json_last_error_msg() . ". Response preview: " . $responsePreview);
+            // Check if it's HTML that wasn't caught above
+            if (strpos($responseTrimmed, '<') === 0) {
+                // HTML response - silently skip
+                return [];
+            }
+            // Only log actual JSON parse errors (not HTML)
+            error_log("NHTSA API JSON parse error for make '{$make}' year {$year}: " . json_last_error_msg());
             // Return empty array instead of throwing - allows script to continue
             return [];
         }
