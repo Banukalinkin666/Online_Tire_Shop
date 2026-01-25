@@ -204,9 +204,9 @@ header('Content-Type: text/html; charset=utf-8');
                                             'make' => $make,
                                             'model' => $model,
                                             'trim' => null,
-                                            'front_tire' => null,
+                                            'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
                                             'rear_tire' => null,
-                                            'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined'
+                                            'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
                                         ]);
                                         $yearInserted++;
                                         $totalInserted++;
