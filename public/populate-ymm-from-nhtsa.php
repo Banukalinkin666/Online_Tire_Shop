@@ -173,39 +173,70 @@ header('Content-Type: text/html; charset=utf-8');
                             }
                             
                             $modelCount = 0;
+                            $insertStartTime = microtime(true);
+                            
                             // Insert each model (without tire sizes - those will be added later via AI or manual entry)
-                            foreach ($models as $model) {
+                            foreach ($models as $modelIndex => $model) {
                                 $modelCount++;
-                                // Check if already exists
-                                $existing = $fitmentModel->getFitment($year, $make, $model, null);
+                                
+                                // Update status every 5 models or at start
+                                if ($modelCount % 5 === 0 || $modelCount === 1) {
+                                    echo "<script>updateStatus('Processing model {$modelCount}/" . count($models) . " for {$make}: {$model}');</script>";
+                                    flush();
+                                }
+                                
+                                // Check if already exists (with timeout protection)
+                                try {
+                                    $existing = $fitmentModel->getFitment($year, $make, $model, null);
+                                } catch (Exception $checkError) {
+                                    echo "<script>updateStatus('ERROR checking {$make} {$model}: ' + " . json_encode($checkError->getMessage()) . ");</script>";
+                                    flush();
+                                    $yearSkipped++;
+                                    $totalSkipped++;
+                                    continue;
+                                }
                                 
                                 if (!$existing) {
                                     // Insert new entry (without tire sizes - will be populated later)
                                     try {
-                                        $fitmentModel->addFitment($year, $make, $model, null, null, null, 'Populated from NHTSA vPIC API - tire sizes to be determined');
+                                        $fitmentModel->addFitment([
+                                            'year' => $year,
+                                            'make' => $make,
+                                            'model' => $model,
+                                            'trim' => null,
+                                            'front_tire' => null,
+                                            'rear_tire' => null,
+                                            'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined'
+                                        ]);
                                         $yearInserted++;
                                         $totalInserted++;
                                         
-                                        // Update status every 10 models
-                                        if ($modelCount % 10 === 0) {
+                                        // Update status every 5 models
+                                        if ($modelCount % 5 === 0) {
                                             echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
                                             flush();
                                         }
                                     } catch (\PDOException $e) {
                                         if (strpos($e->getMessage(), 'duplicate') === false && strpos($e->getMessage(), 'UNIQUE') === false) {
                                             $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
-                                            echo "<script>updateStatus('ERROR inserting {$make} {$model}');</script>";
+                                            echo "<script>updateStatus('ERROR inserting {$make} {$model}: ' + " . json_encode($e->getMessage()) . ");</script>";
                                             flush();
                                         } else {
                                             $yearSkipped++;
                                             $totalSkipped++;
                                         }
+                                    } catch (Exception $e) {
+                                        $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
+                                        echo "<script>updateStatus('ERROR inserting {$make} {$model}: ' + " . json_encode($e->getMessage()) . ");</script>";
+                                        flush();
                                     }
                                 } else {
                                     $yearSkipped++;
                                     $totalSkipped++;
                                 }
                             }
+                            
+                            $insertTime = round(microtime(true) - $insertStartTime, 2);
                             
                             echo "<script>updateStatus('Completed {$make}: " . count($models) . " models, {$yearInserted} inserted');</script>";
                             flush();
