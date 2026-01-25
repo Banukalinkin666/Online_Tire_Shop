@@ -216,22 +216,42 @@ header('Content-Type: text/html; charset=utf-8');
                             
                             $modelCount = 0;
                             $insertStartTime = microtime(true);
+                            $maxTimePerModel = 5; // Maximum 5 seconds per model operation
                             
                             // Insert each model (without tire sizes - those will be added later via AI or manual entry)
                             foreach ($models as $modelIndex => $model) {
                                 $modelCount++;
+                                $modelStartTime = microtime(true);
                                 
-                                // Update status every 5 models or at start
-                                if ($modelCount % 5 === 0 || $modelCount === 1) {
-                                    echo "<script>updateStatus('Processing model {$modelCount}/" . count($models) . " for {$make}: {$model}');</script>";
-                                    flush();
+                                // Reset execution time limit for each model
+                                @set_time_limit(30);
+                                
+                                // Update status for every model (more frequent updates)
+                                echo "<script>updateStatus('Processing model {$modelCount}/" . count($models) . " for {$make}: {$model}');</script>";
+                                flush();
+                                
+                                // Force output flush
+                                if (function_exists('fastcgi_finish_request')) {
+                                    fastcgi_finish_request();
                                 }
                                 
                                 // Check if already exists (with timeout protection and retry)
                                 $existing = null;
                                 $retries = 0;
-                                $maxRetries = 3;
+                                $maxRetries = 2; // Reduced retries for faster failure
+                                $checkStartTime = microtime(true);
+                                
                                 while ($retries < $maxRetries) {
+                                    // Check timeout for this operation
+                                    $checkElapsed = microtime(true) - $checkStartTime;
+                                    if ($checkElapsed > $maxTimePerModel) {
+                                        echo "<script>updateStatus('⚠️ Timeout checking {$make} {$model} - skipping');</script>";
+                                        flush();
+                                        $yearSkipped++;
+                                        $totalSkipped++;
+                                        continue 2; // Skip to next model
+                                    }
+                                    
                                     try {
                                         $existing = $fitmentModel->getFitment($year, $make, $model, null);
                                         break; // Success, exit retry loop
@@ -239,16 +259,16 @@ header('Content-Type: text/html; charset=utf-8');
                                         $retries++;
                                         if ($retries >= $maxRetries) {
                                             // Final retry failed - log and skip
-                                            echo "<script>updateStatus('ERROR checking {$make} {$model} after {$maxRetries} retries: ' + " . json_encode($checkError->getMessage()) . ");</script>";
+                                            echo "<script>updateStatus('ERROR checking {$make} {$model} after {$maxRetries} retries - skipping');</script>";
                                             flush();
                                             $yearSkipped++;
                                             $totalSkipped++;
                                             continue 2; // Skip to next model
                                         }
-                                        // Wait before retry (exponential backoff)
-                                        usleep(100000 * $retries); // 0.1s, 0.2s, 0.3s
+                                        // Wait before retry (shorter backoff)
+                                        usleep(50000 * $retries); // 0.05s, 0.1s
                                     } catch (Exception $checkError) {
-                                        echo "<script>updateStatus('ERROR checking {$make} {$model}: ' + " . json_encode($checkError->getMessage()) . ");</script>";
+                                        echo "<script>updateStatus('ERROR checking {$make} {$model} - skipping');</script>";
                                         flush();
                                         $yearSkipped++;
                                         $totalSkipped++;
@@ -259,10 +279,21 @@ header('Content-Type: text/html; charset=utf-8');
                                 if (!$existing) {
                                     // Insert new entry (without tire sizes - will be populated later)
                                     $insertRetries = 0;
-                                    $insertMaxRetries = 3;
+                                    $insertMaxRetries = 2; // Reduced retries
                                     $inserted = false;
+                                    $insertStartTime = microtime(true);
                                     
                                     while ($insertRetries < $insertMaxRetries && !$inserted) {
+                                        // Check timeout for insert operation
+                                        $insertElapsed = microtime(true) - $insertStartTime;
+                                        if ($insertElapsed > $maxTimePerModel) {
+                                            echo "<script>updateStatus('⚠️ Timeout inserting {$make} {$model} - skipping');</script>";
+                                            flush();
+                                            $yearSkipped++;
+                                            $totalSkipped++;
+                                            break; // Exit insert loop, continue to next model
+                                        }
+                                        
                                         try {
                                             $fitmentModel->addFitment([
                                                 'year' => $year,
@@ -277,10 +308,15 @@ header('Content-Type: text/html; charset=utf-8');
                                             $totalInserted++;
                                             $inserted = true;
                                             
-                                            // Update status every 5 models
+                                            // Update status every 5 models (but always flush)
                                             if ($modelCount % 5 === 0) {
-                                                echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
-                                                flush();
+                                                echo "<script>updateStatus('✓ Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
+                                            }
+                                            flush();
+                                            
+                                            // Force output flush
+                                            if (function_exists('fastcgi_finish_request')) {
+                                                fastcgi_finish_request();
                                             }
                                         } catch (\PDOException $e) {
                                             $insertRetries++;
@@ -293,13 +329,13 @@ header('Content-Type: text/html; charset=utf-8');
                                             } elseif ($insertRetries >= $insertMaxRetries) {
                                                 // Final retry failed - log error but continue
                                                 $errors[] = "Error inserting {$year} {$make} {$model} after {$insertMaxRetries} retries: " . $e->getMessage();
-                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} after {$insertMaxRetries} retries - skipping');</script>";
+                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
                                                 flush();
                                                 $yearSkipped++;
                                                 $totalSkipped++;
                                             } else {
-                                                // Wait before retry (exponential backoff)
-                                                usleep(100000 * $insertRetries); // 0.1s, 0.2s, 0.3s
+                                                // Wait before retry (shorter backoff)
+                                                usleep(50000 * $insertRetries); // 0.05s, 0.1s
                                             }
                                         } catch (Exception $e) {
                                             $insertRetries++;
@@ -310,13 +346,20 @@ header('Content-Type: text/html; charset=utf-8');
                                                 $yearSkipped++;
                                                 $totalSkipped++;
                                             } else {
-                                                usleep(100000 * $insertRetries);
+                                                usleep(50000 * $insertRetries);
                                             }
                                         }
                                     }
                                 } else {
                                     $yearSkipped++;
                                     $totalSkipped++;
+                                }
+                                
+                                // Check if this model took too long (watchdog)
+                                $modelElapsed = microtime(true) - $modelStartTime;
+                                if ($modelElapsed > $maxTimePerModel * 2) {
+                                    echo "<script>updateStatus('⚠️ Model {$modelCount} took {$modelElapsed}s - continuing...');</script>";
+                                    flush();
                                 }
                             }
                             
