@@ -10,16 +10,19 @@
  * Security: Set IMPORT_ALLOWED=true in environment variables or use secret key
  */
 
-error_reporting(E_ALL & ~E_WARNING);
-ini_set('display_errors', '1');
 // Suppress warnings for ini_set when headers already sent (not critical)
+// Set error handler BEFORE any output or ini_set calls
 set_error_handler(function($errno, $errstr, $errfile, $errline) {
     // Suppress zlib.output_compression warnings (headers already sent)
-    if (strpos($errstr, 'zlib.output_compression') !== false) {
+    if (strpos($errstr, 'zlib.output_compression') !== false || 
+        strpos($errstr, 'Cannot change zlib') !== false) {
         return true; // Suppress this warning
     }
     return false; // Let other errors through
 }, E_WARNING);
+
+error_reporting(E_ALL & ~E_WARNING);
+ini_set('display_errors', '1');
 
 require_once __DIR__ . '/../app/bootstrap.php';
 
@@ -77,9 +80,11 @@ header('Content-Type: text/html; charset=utf-8');
             $action = $_POST['action'] ?? '';
             
             if ($action === 'populate' && $startYear > 0 && $endYear > 0 && $endYear >= $startYear) {
-                // Set longer execution time
+                // Set longer execution time and memory limit
                 set_time_limit(3600); // 1 hour
-                ini_set('max_execution_time', 3600);
+                @ini_set('max_execution_time', 3600);
+                @ini_set('memory_limit', '512M'); // Increase memory limit for large datasets
+                ignore_user_abort(true); // Continue even if user closes browser
                 
                 echo "<div class='info'>Starting population for years {$startYear} to {$endYear}...</div>";
                 echo "<div class='info' style='background: #fff3cd;'>⏱️ This may take 30-60 minutes. Keep this page open. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
