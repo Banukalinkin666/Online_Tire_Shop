@@ -188,6 +188,13 @@ class NHTSAService
             throw new Exception("API returned HTTP code: " . $httpCode);
         }
         
+        // Check if response is HTML instead of JSON (API sometimes returns error pages)
+        $responseTrimmed = trim($response);
+        if (empty($responseTrimmed) || strpos($responseTrimmed, '<!DOCTYPE') === 0 || strpos($responseTrimmed, '<html') === 0) {
+            error_log("NHTSA API returned HTML instead of JSON for make '{$make}' year {$year}. URL: {$url}");
+            return []; // Return empty array - script continues
+        }
+        
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {

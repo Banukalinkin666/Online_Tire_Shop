@@ -189,10 +189,10 @@ class VehicleFitment
         
         $result = $stmt->execute([
             ':year' => (int)$data['year'],
-            ':make' => trim($data['make']),
-            ':model' => trim($data['model']),
+            ':make' => trim($data['make'] ?? ''),
+            ':model' => trim($data['model'] ?? ''),
             ':trim' => !empty($data['trim']) ? trim($data['trim']) : null,
-            ':front_tire' => trim($data['front_tire']),
+            ':front_tire' => !empty($data['front_tire']) ? trim($data['front_tire']) : null,
             ':rear_tire' => !empty($data['rear_tire']) ? trim($data['rear_tire']) : null,
             ':notes' => $data['notes'] ?? 'User added vehicle'
         ]);
