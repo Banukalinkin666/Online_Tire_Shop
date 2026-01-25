@@ -191,10 +191,16 @@ class NHTSAService
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Failed to parse API response: " . json_last_error_msg());
+            // Log the problematic response for debugging (first 500 chars)
+            $responsePreview = substr($response, 0, 500);
+            error_log("NHTSA API JSON parse error for make '{$make}' year {$year}: " . json_last_error_msg() . ". Response preview: " . $responsePreview);
+            // Return empty array instead of throwing - allows script to continue
+            return [];
         }
         
         if (!isset($data['Results']) || !is_array($data['Results'])) {
+            // Log if response structure is unexpected
+            error_log("NHTSA API unexpected response structure for make '{$make}' year {$year}. Response: " . substr(json_encode($data), 0, 200));
             return [];
         }
         

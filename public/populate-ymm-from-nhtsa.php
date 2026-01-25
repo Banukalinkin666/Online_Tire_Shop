@@ -247,9 +247,18 @@ header('Content-Type: text/html; charset=utf-8');
                         } catch (Exception $e) {
                             $errorMsg = "Error fetching models for {$year} {$make}: " . $e->getMessage();
                             $errors[] = $errorMsg;
-                            echo "<div class='warning'>⚠️ {$errorMsg}</div>";
-                            echo "<script>updateStatus('ERROR: {$errorMsg} - continuing to next make');</script>";
+                            
+                            // Only show warning for non-critical errors (JSON parse errors are handled gracefully now)
+                            if (strpos($e->getMessage(), 'parse') === false && strpos($e->getMessage(), 'JSON') === false) {
+                                echo "<div class='warning'>⚠️ {$errorMsg}</div>";
+                            }
+                            
+                            echo "<script>updateStatus('⚠️ Skipping {$make} due to error - continuing...');</script>";
                             flush();
+                            
+                            // Small delay before continuing
+                            usleep(50000);
+                            
                             // Continue to next make instead of stopping
                             continue;
                         }
