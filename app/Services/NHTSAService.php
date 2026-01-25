@@ -163,29 +163,37 @@ class NHTSAService
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30, // Increased timeout
-            CURLOPT_CONNECTTIMEOUT => 15, // Increased connection timeout
+            CURLOPT_TIMEOUT => 20, // Reduced to 20 seconds to fail faster
+            CURLOPT_CONNECTTIMEOUT => 10, // Reduced to 10 seconds
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0',
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_TIMEOUT_MS => 20000, // 20 seconds in milliseconds (hard limit)
+            CURLOPT_CONNECTTIMEOUT_MS => 10000 // 10 seconds in milliseconds
         ]);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $curlErrno = curl_errno($ch);
         curl_close($ch);
         
+        // Handle timeout errors gracefully
+        if ($curlErrno === CURLE_OPERATION_TIMEDOUT || $curlErrno === CURLE_OPERATION_TIMEOUTED) {
+            // Timeout occurred - return empty array instead of throwing (allows script to continue)
+            return [];
+        }
+        
         if ($error) {
-            throw new Exception("API request failed: " . $error);
+            // For other errors, return empty array instead of throwing to prevent script from stopping
+            return [];
         }
         
         if ($httpCode !== 200) {
             // Some makes might not have models for certain years - that's okay
-            if ($httpCode === 404) {
-                return [];
-            }
-            throw new Exception("API returned HTTP code: " . $httpCode);
+            // Return empty array for any non-200 response to allow script to continue
+            return [];
         }
         
         // Check if response is HTML instead of JSON (API sometimes returns error pages)

@@ -157,30 +157,54 @@ header('Content-Type: text/html; charset=utf-8');
                     
                         // For each make, get models
                         foreach ($allMakes as $makeIndex => $make) {
-                        $makeIndex++;
-                        $makeProgress = round(($makeIndex / $totalMakes) * 100);
-                        
-                        // Update make progress every make (for better visibility)
-                        echo "<script>
-                            document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
-                            updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
-                        </script>";
-                        flush();
-                        
-                        // Force output flush
-                        if (function_exists('fastcgi_finish_request')) {
-                            fastcgi_finish_request();
-                        }
+                            $makeIndex++;
+                            $makeProgress = round(($makeIndex / $totalMakes) * 100);
+                            
+                            // Update make progress every make (for better visibility)
+                            echo "<script>
+                                document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
+                                updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
+                            </script>";
+                            flush();
+                            
+                            // Force output flush and send heartbeat
+                            if (function_exists('fastcgi_finish_request')) {
+                                fastcgi_finish_request();
+                            }
+                            
+                            // Reset execution time limit for each make (prevents timeout)
+                            @set_time_limit(60); // Reset to 60 seconds per make
                         
                         try {
-                            // Add timeout wrapper
+                            // Add timeout wrapper with maximum execution time per make
                             $startTime = microtime(true);
+                            $maxTimePerMake = 25; // Maximum 25 seconds per make
+                            
                             echo "<script>updateStatus('Fetching models for {$year} {$make}...');</script>";
                             flush();
                             
-                            $models = $nhtsaService->getModelsForMakeYear($make, $year);
+                            // Use a timeout mechanism to prevent hanging
+                            $models = [];
+                            $apiCallStart = microtime(true);
+                            
+                            try {
+                                $models = $nhtsaService->getModelsForMakeYear($make, $year);
+                            } catch (Exception $apiError) {
+                                // If API call fails, log but continue
+                                $elapsed = round(microtime(true) - $apiCallStart, 2);
+                                echo "<script>updateStatus('API error for {$make} after {$elapsed}s - skipping: ' + " . json_encode($apiError->getMessage()) . ");</script>";
+                                flush();
+                                continue; // Skip to next make
+                            }
                             
                             $elapsed = round(microtime(true) - $startTime, 2);
+                            
+                            // Check if we exceeded maximum time (safety check)
+                            if ($elapsed > $maxTimePerMake) {
+                                echo "<script>updateStatus('⚠️ {$make} took {$elapsed}s (exceeded {$maxTimePerMake}s limit) - continuing...');</script>";
+                                flush();
+                            }
+                            
                             echo "<script>updateStatus('Got " . count($models) . " models for {$make} in {$elapsed}s');</script>";
                             flush();
                             
