@@ -94,16 +94,22 @@ class Connection
             }
 
             try {
-                // Set default options with timeouts if not already set
-                $defaultOptions = [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_TIMEOUT => 5, // Connection timeout in seconds
+                // Get user-provided options or use defaults
+                $userOptions = $config['options'] ?? [];
+                
+                // Set default options if not already provided by user
+                $options = [
+                    PDO::ATTR_ERRMODE => $userOptions[PDO::ATTR_ERRMODE] ?? PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => $userOptions[PDO::ATTR_DEFAULT_FETCH_MODE] ?? PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => $userOptions[PDO::ATTR_EMULATE_PREPARES] ?? false,
                 ];
                 
-                // Merge with user-provided options (user options take precedence)
-                $options = array_merge($defaultOptions, $config['options'] ?? []);
+                // Add any other user-provided options (merge remaining options)
+                foreach ($userOptions as $key => $value) {
+                    if (!isset($options[$key])) {
+                        $options[$key] = $value;
+                    }
+                }
                 
                 self::$instance = new PDO(
                     $dsn,
