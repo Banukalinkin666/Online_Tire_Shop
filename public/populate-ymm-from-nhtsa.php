@@ -10,8 +10,16 @@
  * Security: Set IMPORT_ALLOWED=true in environment variables or use secret key
  */
 
-error_reporting(E_ALL);
+error_reporting(E_ALL & ~E_WARNING);
 ini_set('display_errors', '1');
+// Suppress warnings for ini_set when headers already sent (not critical)
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    // Suppress zlib.output_compression warnings (headers already sent)
+    if (strpos($errstr, 'zlib.output_compression') !== false) {
+        return true; // Suppress this warning
+    }
+    return false; // Let other errors through
+}, E_WARNING);
 
 require_once __DIR__ . '/../app/bootstrap.php';
 
@@ -116,29 +124,34 @@ header('Content-Type: text/html; charset=utf-8');
                 if (ob_get_level()) {
                     ob_end_flush();
                 }
-                ini_set('output_buffering', 'off');
-                ini_set('zlib.output_compression', false);
+                @ini_set('output_buffering', 'off');
+                // Suppress warning if headers already sent (not critical)
+                if (!headers_sent()) {
+                    @ini_set('zlib.output_compression', false);
+                }
                 
                 // Process each year
                 $makeIndex = 0;
                 $totalMakes = count($allMakes);
                 
+                // Wrap year loop in try-catch to prevent script from stopping
                 for ($year = $startYear; $year <= $endYear; $year++) {
-                    $currentYear++;
-                    $progress = round(($currentYear / $totalYears) * 100);
-                    echo "<div class='info' id='year-{$year}'>Processing year {$year} ({$currentYear}/{$totalYears})... <span id='make-progress-{$year}'>Make 0/{$totalMakes}</span></div>";
-                    echo "<script>document.getElementById('progress').style.width = '{$progress}%'; document.getElementById('progress').textContent = '{$progress}%';</script>";
-                    flush();
-                    if (function_exists('fastcgi_finish_request')) {
-                        fastcgi_finish_request();
-                    }
+                    try {
+                        $currentYear++;
+                        $progress = round(($currentYear / $totalYears) * 100);
+                        echo "<div class='info' id='year-{$year}'>Processing year {$year} ({$currentYear}/{$totalYears})... <span id='make-progress-{$year}'>Make 0/{$totalMakes}</span></div>";
+                        echo "<script>document.getElementById('progress').style.width = '{$progress}%'; document.getElementById('progress').textContent = '{$progress}%';</script>";
+                        flush();
+                        if (function_exists('fastcgi_finish_request')) {
+                            fastcgi_finish_request();
+                        }
+                        
+                        $yearInserted = 0;
+                        $yearSkipped = 0;
+                        $makeIndex = 0;
                     
-                    $yearInserted = 0;
-                    $yearSkipped = 0;
-                    $makeIndex = 0;
-                    
-                    // For each make, get models
-                    foreach ($allMakes as $makeIndex => $make) {
+                        // For each make, get models
+                        foreach ($allMakes as $makeIndex => $make) {
                         $makeIndex++;
                         $makeProgress = round(($makeIndex / $totalMakes) * 100);
                         
@@ -185,50 +198,92 @@ header('Content-Type: text/html; charset=utf-8');
                                     flush();
                                 }
                                 
-                                // Check if already exists (with timeout protection)
-                                try {
-                                    $existing = $fitmentModel->getFitment($year, $make, $model, null);
-                                } catch (Exception $checkError) {
-                                    echo "<script>updateStatus('ERROR checking {$make} {$model}: ' + " . json_encode($checkError->getMessage()) . ");</script>";
-                                    flush();
-                                    $yearSkipped++;
-                                    $totalSkipped++;
-                                    continue;
+                                // Check if already exists (with timeout protection and retry)
+                                $existing = null;
+                                $retries = 0;
+                                $maxRetries = 3;
+                                while ($retries < $maxRetries) {
+                                    try {
+                                        $existing = $fitmentModel->getFitment($year, $make, $model, null);
+                                        break; // Success, exit retry loop
+                                    } catch (\PDOException $checkError) {
+                                        $retries++;
+                                        if ($retries >= $maxRetries) {
+                                            // Final retry failed - log and skip
+                                            echo "<script>updateStatus('ERROR checking {$make} {$model} after {$maxRetries} retries: ' + " . json_encode($checkError->getMessage()) . ");</script>";
+                                            flush();
+                                            $yearSkipped++;
+                                            $totalSkipped++;
+                                            continue 2; // Skip to next model
+                                        }
+                                        // Wait before retry (exponential backoff)
+                                        usleep(100000 * $retries); // 0.1s, 0.2s, 0.3s
+                                    } catch (Exception $checkError) {
+                                        echo "<script>updateStatus('ERROR checking {$make} {$model}: ' + " . json_encode($checkError->getMessage()) . ");</script>";
+                                        flush();
+                                        $yearSkipped++;
+                                        $totalSkipped++;
+                                        continue 2; // Skip to next model
+                                    }
                                 }
                                 
                                 if (!$existing) {
                                     // Insert new entry (without tire sizes - will be populated later)
-                                    try {
-                                        $fitmentModel->addFitment([
-                                            'year' => $year,
-                                            'make' => $make,
-                                            'model' => $model,
-                                            'trim' => null,
-                                            'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
-                                            'rear_tire' => null,
-                                            'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
-                                        ]);
-                                        $yearInserted++;
-                                        $totalInserted++;
-                                        
-                                        // Update status every 5 models
-                                        if ($modelCount % 5 === 0) {
-                                            echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
-                                            flush();
+                                    $insertRetries = 0;
+                                    $insertMaxRetries = 3;
+                                    $inserted = false;
+                                    
+                                    while ($insertRetries < $insertMaxRetries && !$inserted) {
+                                        try {
+                                            $fitmentModel->addFitment([
+                                                'year' => $year,
+                                                'make' => $make,
+                                                'model' => $model,
+                                                'trim' => null,
+                                                'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
+                                                'rear_tire' => null,
+                                                'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
+                                            ]);
+                                            $yearInserted++;
+                                            $totalInserted++;
+                                            $inserted = true;
+                                            
+                                            // Update status every 5 models
+                                            if ($modelCount % 5 === 0) {
+                                                echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
+                                                flush();
+                                            }
+                                        } catch (\PDOException $e) {
+                                            $insertRetries++;
+                                            if (strpos($e->getMessage(), 'duplicate') !== false || strpos($e->getMessage(), 'UNIQUE') !== false) {
+                                                // Duplicate entry - skip (not an error)
+                                                $yearSkipped++;
+                                                $totalSkipped++;
+                                                $inserted = true; // Mark as handled
+                                                break;
+                                            } elseif ($insertRetries >= $insertMaxRetries) {
+                                                // Final retry failed - log error but continue
+                                                $errors[] = "Error inserting {$year} {$make} {$model} after {$insertMaxRetries} retries: " . $e->getMessage();
+                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} after {$insertMaxRetries} retries - skipping');</script>";
+                                                flush();
+                                                $yearSkipped++;
+                                                $totalSkipped++;
+                                            } else {
+                                                // Wait before retry (exponential backoff)
+                                                usleep(100000 * $insertRetries); // 0.1s, 0.2s, 0.3s
+                                            }
+                                        } catch (Exception $e) {
+                                            $insertRetries++;
+                                            if ($insertRetries >= $insertMaxRetries) {
+                                                $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
+                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
+                                                flush();
+                                                $yearSkipped++;
+                                                $totalSkipped++;
+                                            } else {
+                                                usleep(100000 * $insertRetries);
+                                            }
                                         }
-                                    } catch (\PDOException $e) {
-                                        if (strpos($e->getMessage(), 'duplicate') === false && strpos($e->getMessage(), 'UNIQUE') === false) {
-                                            $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
-                                            echo "<script>updateStatus('ERROR inserting {$make} {$model}: ' + " . json_encode($e->getMessage()) . ");</script>";
-                                            flush();
-                                        } else {
-                                            $yearSkipped++;
-                                            $totalSkipped++;
-                                        }
-                                    } catch (Exception $e) {
-                                        $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
-                                        echo "<script>updateStatus('ERROR inserting {$make} {$model}: ' + " . json_encode($e->getMessage()) . ");</script>";
-                                        flush();
                                     }
                                 } else {
                                     $yearSkipped++;
@@ -262,10 +317,19 @@ header('Content-Type: text/html; charset=utf-8');
                             // Continue to next make instead of stopping
                             continue;
                         }
+                        }
+                        
+                        echo "<div class='success' id='year-result-{$year}'>✓ Year {$year} Complete: Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
+                        flush();
+                    } catch (Exception $yearError) {
+                        // Catch any unexpected errors in year processing and continue
+                        $errorMsg = "Unexpected error processing year {$year}: " . $yearError->getMessage();
+                        $errors[] = $errorMsg;
+                        echo "<div class='warning'>⚠️ {$errorMsg}</div>";
+                        echo "<script>updateStatus('⚠️ Error processing year {$year} - continuing to next year...');</script>";
+                        flush();
+                        // Continue to next year instead of stopping
                     }
-                    
-                    echo "<div class='success' id='year-result-{$year}'>✓ Year {$year} Complete: Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
-                    flush();
                 }
                 
                 echo "<div class='progress'><div class='progress-bar' style='width: 100%'>100%</div></div>";
