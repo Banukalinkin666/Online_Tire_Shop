@@ -18,7 +18,6 @@ require_once __DIR__ . '/../app/bootstrap.php';
 use App\Services\NHTSAService;
 use App\Models\VehicleFitment;
 use App\Database\Connection;
-use PDOException;
 
 // Security check
 $importAllowed = $_ENV['IMPORT_ALLOWED'] ?? $_SERVER['IMPORT_ALLOWED'] ?? 'false';
@@ -192,7 +191,7 @@ header('Content-Type: text/html; charset=utf-8');
                                             echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
                                             flush();
                                         }
-                                    } catch (PDOException $e) {
+                                    } catch (\PDOException $e) {
                                         if (strpos($e->getMessage(), 'duplicate') === false && strpos($e->getMessage(), 'UNIQUE') === false) {
                                             $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
                                             echo "<script>updateStatus('ERROR inserting {$make} {$model}');</script>";
