@@ -143,24 +143,40 @@ header('Content-Type: text/html; charset=utf-8');
                         $makeIndex++;
                         $makeProgress = round(($makeIndex / $totalMakes) * 100);
                         
-                        // Update make progress every 10 makes or at start
-                        if ($makeIndex % 10 === 0 || $makeIndex === 1) {
-                            echo "<script>
-                                document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
-                                updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
-                            </script>";
-                            flush();
+                        // Update make progress every make (for better visibility)
+                        echo "<script>
+                            document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
+                            updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
+                        </script>";
+                        flush();
+                        
+                        // Force output flush
+                        if (function_exists('fastcgi_finish_request')) {
+                            fastcgi_finish_request();
                         }
                         
                         try {
+                            // Add timeout wrapper
+                            $startTime = microtime(true);
+                            echo "<script>updateStatus('Fetching models for {$year} {$make}...');</script>";
+                            flush();
+                            
                             $models = $nhtsaService->getModelsForMakeYear($make, $year);
                             
+                            $elapsed = round(microtime(true) - $startTime, 2);
+                            echo "<script>updateStatus('Got " . count($models) . " models for {$make} in {$elapsed}s');</script>";
+                            flush();
+                            
                             if (empty($models)) {
+                                echo "<script>updateStatus('No models found for {$year} {$make} - skipping');</script>";
+                                flush();
                                 continue; // Skip makes with no models for this year
                             }
                             
+                            $modelCount = 0;
                             // Insert each model (without tire sizes - those will be added later via AI or manual entry)
                             foreach ($models as $model) {
+                                $modelCount++;
                                 // Check if already exists
                                 $existing = $fitmentModel->getFitment($year, $make, $model, null);
                                 
@@ -170,9 +186,17 @@ header('Content-Type: text/html; charset=utf-8');
                                         $fitmentModel->addFitment($year, $make, $model, null, null, null, 'Populated from NHTSA vPIC API - tire sizes to be determined');
                                         $yearInserted++;
                                         $totalInserted++;
+                                        
+                                        // Update status every 10 models
+                                        if ($modelCount % 10 === 0) {
+                                            echo "<script>updateStatus('Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
+                                            flush();
+                                        }
                                     } catch (PDOException $e) {
                                         if (strpos($e->getMessage(), 'duplicate') === false && strpos($e->getMessage(), 'UNIQUE') === false) {
                                             $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
+                                            echo "<script>updateStatus('ERROR inserting {$make} {$model}');</script>";
+                                            flush();
                                         } else {
                                             $yearSkipped++;
                                             $totalSkipped++;
@@ -184,6 +208,9 @@ header('Content-Type: text/html; charset=utf-8');
                                 }
                             }
                             
+                            echo "<script>updateStatus('Completed {$make}: " . count($models) . " models, {$yearInserted} inserted');</script>";
+                            flush();
+                            
                             // Small delay to avoid rate limiting (reduced for faster processing)
                             usleep(50000); // 0.05 second
                             
@@ -191,7 +218,9 @@ header('Content-Type: text/html; charset=utf-8');
                             $errorMsg = "Error fetching models for {$year} {$make}: " . $e->getMessage();
                             $errors[] = $errorMsg;
                             echo "<div class='warning'>⚠️ {$errorMsg}</div>";
+                            echo "<script>updateStatus('ERROR: {$errorMsg} - continuing to next make');</script>";
                             flush();
+                            // Continue to next make instead of stopping
                             continue;
                         }
                     }

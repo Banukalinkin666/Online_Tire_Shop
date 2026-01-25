@@ -163,10 +163,12 @@ class NHTSAService
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 30, // Increased timeout
+            CURLOPT_CONNECTTIMEOUT => 15, // Increased connection timeout
             CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0'
+            CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0',
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3
         ]);
         
         $response = curl_exec($ch);
