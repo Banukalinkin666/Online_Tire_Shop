@@ -190,32 +190,55 @@ class NHTSAService
         
         // Check if response is HTML instead of JSON (API sometimes returns error pages)
         $responseTrimmed = trim($response);
-        if (empty($responseTrimmed) || 
-            strpos($responseTrimmed, '<!DOCTYPE') === 0 || 
-            strpos($responseTrimmed, '<html') === 0 ||
-            strpos($responseTrimmed, '<HTML') === 0 ||
-            strpos($responseTrimmed, '<!doctype') === 0) {
-            // Silently skip - don't log as error since this is expected for some makes
+        
+        // Enhanced HTML detection - check for common HTML tags and patterns
+        $isHtml = empty($responseTrimmed) || 
+            stripos($responseTrimmed, '<!DOCTYPE') === 0 || 
+            stripos($responseTrimmed, '<html') === 0 ||
+            stripos($responseTrimmed, '<!doctype') === 0 ||
+            stripos($responseTrimmed, '<body') !== false ||
+            stripos($responseTrimmed, '<head') !== false ||
+            (stripos($responseTrimmed, '<') === 0 && stripos($responseTrimmed, '<?xml') !== 0);
+        
+        if ($isHtml) {
+            // Silently skip HTML responses - this is expected for some makes/years
             return []; // Return empty array - script continues
         }
         
         $data = json_decode($response, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            // Check if it's HTML that wasn't caught above
-            if (strpos($responseTrimmed, '<') === 0) {
-                // HTML response - silently skip
+            // Double-check if it's HTML that wasn't caught above (case-insensitive)
+            $responseLower = strtolower($responseTrimmed);
+            if (strpos($responseLower, '<html') !== false || 
+                strpos($responseLower, '<body') !== false || 
+                strpos($responseLower, '<head') !== false ||
+                strpos($responseLower, '<!doctype') !== false) {
+                // HTML response - silently skip (no logging needed)
                 return [];
             }
-            // Only log actual JSON parse errors (not HTML)
-            error_log("NHTSA API JSON parse error for make '{$make}' year {$year}: " . json_last_error_msg());
+            
+            // For actual JSON parse errors (not HTML), only log if response is suspiciously short
+            // Many makes simply don't have data for certain years - this is normal
+            if (strlen($responseTrimmed) < 50) {
+                // Very short response might indicate an error page - skip silently
+                return [];
+            }
+            
+            // Only log if it looks like actual JSON that failed to parse (rare case)
+            // Most parse errors are from HTML responses which we've already handled
+            if (strpos($responseTrimmed, '{') === 0 || strpos($responseTrimmed, '[') === 0) {
+                // Looks like JSON but failed to parse - log only in debug mode
+                if (defined('DEBUG_NHTSA_ERRORS') && DEBUG_NHTSA_ERRORS) {
+                    error_log("NHTSA API JSON parse error for make '{$make}' year {$year}: " . json_last_error_msg());
+                }
+            }
             // Return empty array instead of throwing - allows script to continue
             return [];
         }
         
         if (!isset($data['Results']) || !is_array($data['Results'])) {
-            // Log if response structure is unexpected
-            error_log("NHTSA API unexpected response structure for make '{$make}' year {$year}. Response: " . substr(json_encode($data), 0, 200));
+            // Empty or invalid response structure - silently skip (expected for some makes/years)
             return [];
         }
         
