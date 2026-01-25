@@ -31,12 +31,12 @@ class VehicleFitment
     public function getFitment(int $year, string $make, string $model, ?string $trim = null): ?array
     {
         // Normalize make and model for case-insensitive matching
-        $make = ucfirst(strtolower(trim($make)));
-        $model = ucfirst(strtolower(trim($model)));
+        $make = ucfirst(strtolower(trim($make ?? '')));
+        $model = ucfirst(strtolower(trim($model ?? '')));
         
         // Try exact match first (with trim if provided)
         if ($trim !== null && $trim !== '') {
-            $trim = trim($trim);
+            $trim = trim($trim ?? '');
             $sql = "SELECT * FROM vehicle_fitment 
                     WHERE year = :year 
                     AND LOWER(TRIM(make)) = LOWER(:make)
@@ -94,7 +94,7 @@ class VehicleFitment
     public function getTrims(int $year, string $make, string $model): array
     {
         // Normalize for case-insensitive matching
-        $make = ucfirst(strtolower(trim($make)));
+        $make = ucfirst(strtolower(trim($make ?? '')));
         $model = ucfirst(strtolower(trim($model)));
         
         $sql = "SELECT DISTINCT trim 
@@ -145,7 +145,7 @@ class VehicleFitment
     public function getModels(int $year, string $make): array
     {
         // Normalize for case-insensitive matching
-        $make = ucfirst(strtolower(trim($make)));
+        $make = ucfirst(strtolower(trim($make ?? '')));
         
         $sql = "SELECT DISTINCT model 
                 FROM vehicle_fitment 
