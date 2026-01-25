@@ -94,12 +94,33 @@ class Connection
             }
 
             try {
+                // Set default options with timeouts if not already set
+                $defaultOptions = [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_TIMEOUT => 5, // Connection timeout in seconds
+                ];
+                
+                // Merge with user-provided options (user options take precedence)
+                $options = array_merge($defaultOptions, $config['options'] ?? []);
+                
                 self::$instance = new PDO(
                     $dsn,
                     $config['username'],
                     $config['password'],
-                    $config['options']
+                    $options
                 );
+                
+                // Set statement timeout for PostgreSQL (if using PostgreSQL)
+                if ($dbType === 'pgsql' || $dbType === 'postgresql') {
+                    // Set statement timeout to 10 seconds
+                    self::$instance->exec("SET statement_timeout = 10000"); // 10 seconds in milliseconds
+                } else {
+                    // For MySQL, set query timeout via connection attribute
+                    // Note: MySQL doesn't support per-query timeout via PDO, but we can set it globally
+                    self::$instance->exec("SET SESSION max_execution_time = 10000"); // 10 seconds in milliseconds
+                }
             } catch (PDOException $e) {
                 error_log("Database connection failed: " . $e->getMessage());
                 throw new PDOException("Database connection failed. Please check your configuration.", 0, $e);

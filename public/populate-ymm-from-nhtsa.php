@@ -216,7 +216,9 @@ header('Content-Type: text/html; charset=utf-8');
                             
                             $modelCount = 0;
                             $insertStartTime = microtime(true);
-                            $maxTimePerModel = 5; // Maximum 5 seconds per model operation
+                            $maxTimePerModel = 3; // Reduced to 3 seconds per model operation
+                            $modelsProcessed = 0;
+                            $maxModelsWithoutProgress = 10; // Skip make if 10 models fail in a row
                             
                             // Insert each model (without tire sizes - those will be added later via AI or manual entry)
                             foreach ($models as $modelIndex => $model) {
@@ -224,7 +226,7 @@ header('Content-Type: text/html; charset=utf-8');
                                 $modelStartTime = microtime(true);
                                 
                                 // Reset execution time limit for each model
-                                @set_time_limit(30);
+                                @set_time_limit(20);
                                 
                                 // Update status for every model (more frequent updates)
                                 echo "<script>updateStatus('Processing model {$modelCount}/" . count($models) . " for {$make}: {$model}');</script>";
@@ -235,131 +237,162 @@ header('Content-Type: text/html; charset=utf-8');
                                     fastcgi_finish_request();
                                 }
                                 
-                                // Check if already exists (with timeout protection and retry)
+                                // Check if already exists (with aggressive timeout protection)
                                 $existing = null;
-                                $retries = 0;
-                                $maxRetries = 2; // Reduced retries for faster failure
                                 $checkStartTime = microtime(true);
+                                $checkTimeout = 2; // 2 seconds max for check operation
                                 
-                                while ($retries < $maxRetries) {
-                                    // Check timeout for this operation
-                                    $checkElapsed = microtime(true) - $checkStartTime;
-                                    if ($checkElapsed > $maxTimePerModel) {
+                                try {
+                                    // Use a simple timeout wrapper
+                                    $checkCompleted = false;
+                                    $checkResult = null;
+                                    
+                                    // Try to get fitment with timeout protection
+                                    $checkElapsed = 0;
+                                    while ($checkElapsed < $checkTimeout && !$checkCompleted) {
+                                        try {
+                                            $existing = $fitmentModel->getFitment($year, $make, $model, null);
+                                            $checkCompleted = true;
+                                            break;
+                                        } catch (\PDOException $checkError) {
+                                            $checkElapsed = microtime(true) - $checkStartTime;
+                                            if ($checkElapsed >= $checkTimeout) {
+                                                // Timeout - skip this model
+                                                echo "<script>updateStatus('⚠️ Timeout checking {$make} {$model} ({$checkElapsed}s) - skipping');</script>";
+                                                flush();
+                                                $yearSkipped++;
+                                                $totalSkipped++;
+                                                $modelsProcessed++;
+                                                continue 2; // Skip to next model
+                                            }
+                                            // Very short wait before retry
+                                            usleep(10000); // 0.01 second
+                                        }
+                                    }
+                                    
+                                    // Final timeout check
+                                    if (!$checkCompleted) {
                                         echo "<script>updateStatus('⚠️ Timeout checking {$make} {$model} - skipping');</script>";
                                         flush();
                                         $yearSkipped++;
                                         $totalSkipped++;
-                                        continue 2; // Skip to next model
+                                        $modelsProcessed++;
+                                        continue; // Skip to next model
                                     }
-                                    
-                                    try {
-                                        $existing = $fitmentModel->getFitment($year, $make, $model, null);
-                                        break; // Success, exit retry loop
-                                    } catch (\PDOException $checkError) {
-                                        $retries++;
-                                        if ($retries >= $maxRetries) {
-                                            // Final retry failed - log and skip
-                                            echo "<script>updateStatus('ERROR checking {$make} {$model} after {$maxRetries} retries - skipping');</script>";
-                                            flush();
-                                            $yearSkipped++;
-                                            $totalSkipped++;
-                                            continue 2; // Skip to next model
-                                        }
-                                        // Wait before retry (shorter backoff)
-                                        usleep(50000 * $retries); // 0.05s, 0.1s
-                                    } catch (Exception $checkError) {
-                                        echo "<script>updateStatus('ERROR checking {$make} {$model} - skipping');</script>";
-                                        flush();
-                                        $yearSkipped++;
-                                        $totalSkipped++;
-                                        continue 2; // Skip to next model
-                                    }
+                                } catch (Exception $checkError) {
+                                    echo "<script>updateStatus('ERROR checking {$make} {$model} - skipping');</script>";
+                                    flush();
+                                    $yearSkipped++;
+                                    $totalSkipped++;
+                                    $modelsProcessed++;
+                                    continue; // Skip to next model
                                 }
                                 
                                 if (!$existing) {
                                     // Insert new entry (without tire sizes - will be populated later)
-                                    $insertRetries = 0;
-                                    $insertMaxRetries = 2; // Reduced retries
                                     $inserted = false;
                                     $insertStartTime = microtime(true);
+                                    $insertTimeout = 2; // 2 seconds max for insert
                                     
-                                    while ($insertRetries < $insertMaxRetries && !$inserted) {
-                                        // Check timeout for insert operation
-                                        $insertElapsed = microtime(true) - $insertStartTime;
-                                        if ($insertElapsed > $maxTimePerModel) {
-                                            echo "<script>updateStatus('⚠️ Timeout inserting {$make} {$model} - skipping');</script>";
+                                    try {
+                                        // Try insert with timeout protection
+                                        $insertElapsed = 0;
+                                        $lastException = null;
+                                        
+                                        while ($insertElapsed < $insertTimeout && !$inserted) {
+                                            try {
+                                                $fitmentModel->addFitment([
+                                                    'year' => $year,
+                                                    'make' => $make,
+                                                    'model' => $model,
+                                                    'trim' => null,
+                                                    'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
+                                                    'rear_tire' => null,
+                                                    'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
+                                                ]);
+                                                $yearInserted++;
+                                                $totalInserted++;
+                                                $inserted = true;
+                                                $modelsProcessed++;
+                                                
+                                                // Update status every 5 models (but always flush)
+                                                if ($modelCount % 5 === 0) {
+                                                    echo "<script>updateStatus('✓ Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
+                                                }
+                                                flush();
+                                                
+                                                // Force output flush
+                                                if (function_exists('fastcgi_finish_request')) {
+                                                    fastcgi_finish_request();
+                                                }
+                                                break; // Success
+                                            } catch (\PDOException $e) {
+                                                $lastException = $e;
+                                                $insertElapsed = microtime(true) - $insertStartTime;
+                                                
+                                                // Check for duplicate (not an error)
+                                                if (strpos($e->getMessage(), 'duplicate') !== false || strpos($e->getMessage(), 'UNIQUE') !== false) {
+                                                    $yearSkipped++;
+                                                    $totalSkipped++;
+                                                    $inserted = true; // Mark as handled
+                                                    $modelsProcessed++;
+                                                    break;
+                                                }
+                                                
+                                                // Check timeout
+                                                if ($insertElapsed >= $insertTimeout) {
+                                                    echo "<script>updateStatus('⚠️ Timeout inserting {$make} {$model} ({$insertElapsed}s) - skipping');</script>";
+                                                    flush();
+                                                    $yearSkipped++;
+                                                    $totalSkipped++;
+                                                    $modelsProcessed++;
+                                                    break; // Exit insert loop
+                                                }
+                                                
+                                                // Very short wait before retry
+                                                usleep(10000); // 0.01 second
+                                                $insertElapsed = microtime(true) - $insertStartTime; // Update elapsed time
+                                            }
+                                        }
+                                        
+                                        // Final timeout check
+                                        if (!$inserted) {
+                                            // Insert failed - log and skip
+                                            $errorMsg = $lastException ? $lastException->getMessage() : 'Timeout or unknown error';
+                                            echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
                                             flush();
                                             $yearSkipped++;
                                             $totalSkipped++;
-                                            break; // Exit insert loop, continue to next model
+                                            $modelsProcessed++;
                                         }
-                                        
-                                        try {
-                                            $fitmentModel->addFitment([
-                                                'year' => $year,
-                                                'make' => $make,
-                                                'model' => $model,
-                                                'trim' => null,
-                                                'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
-                                                'rear_tire' => null,
-                                                'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
-                                            ]);
-                                            $yearInserted++;
-                                            $totalInserted++;
-                                            $inserted = true;
-                                            
-                                            // Update status every 5 models (but always flush)
-                                            if ($modelCount % 5 === 0) {
-                                                echo "<script>updateStatus('✓ Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
-                                            }
-                                            flush();
-                                            
-                                            // Force output flush
-                                            if (function_exists('fastcgi_finish_request')) {
-                                                fastcgi_finish_request();
-                                            }
-                                        } catch (\PDOException $e) {
-                                            $insertRetries++;
-                                            if (strpos($e->getMessage(), 'duplicate') !== false || strpos($e->getMessage(), 'UNIQUE') !== false) {
-                                                // Duplicate entry - skip (not an error)
-                                                $yearSkipped++;
-                                                $totalSkipped++;
-                                                $inserted = true; // Mark as handled
-                                                break;
-                                            } elseif ($insertRetries >= $insertMaxRetries) {
-                                                // Final retry failed - log error but continue
-                                                $errors[] = "Error inserting {$year} {$make} {$model} after {$insertMaxRetries} retries: " . $e->getMessage();
-                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
-                                                flush();
-                                                $yearSkipped++;
-                                                $totalSkipped++;
-                                            } else {
-                                                // Wait before retry (shorter backoff)
-                                                usleep(50000 * $insertRetries); // 0.05s, 0.1s
-                                            }
-                                        } catch (Exception $e) {
-                                            $insertRetries++;
-                                            if ($insertRetries >= $insertMaxRetries) {
-                                                $errors[] = "Error inserting {$year} {$make} {$model}: " . $e->getMessage();
-                                                echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
-                                                flush();
-                                                $yearSkipped++;
-                                                $totalSkipped++;
-                                            } else {
-                                                usleep(50000 * $insertRetries);
-                                            }
-                                        }
+                                    } catch (Exception $e) {
+                                        echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
+                                        flush();
+                                        $yearSkipped++;
+                                        $totalSkipped++;
+                                        $modelsProcessed++;
                                     }
                                 } else {
                                     $yearSkipped++;
                                     $totalSkipped++;
+                                    $modelsProcessed++;
                                 }
                                 
                                 // Check if this model took too long (watchdog)
                                 $modelElapsed = microtime(true) - $modelStartTime;
-                                if ($modelElapsed > $maxTimePerModel * 2) {
-                                    echo "<script>updateStatus('⚠️ Model {$modelCount} took {$modelElapsed}s - continuing...');</script>";
+                                if ($modelElapsed > $maxTimePerModel) {
+                                    echo "<script>updateStatus('⚠️ Model {$modelCount} took {$modelElapsed}s');</script>";
                                     flush();
+                                }
+                                
+                                // Skip entire make if too many models are failing
+                                if ($modelsProcessed > 0 && ($yearSkipped + $yearInserted) > 0) {
+                                    $failureRate = $yearSkipped / ($yearSkipped + $yearInserted);
+                                    if ($failureRate > 0.8 && $modelsProcessed >= $maxModelsWithoutProgress) {
+                                        echo "<script>updateStatus('⚠️ High failure rate for {$make} ({$failureRate}%) - skipping remaining models');</script>";
+                                        flush();
+                                        break; // Skip to next make
+                                    }
                                 }
                             }
                             
