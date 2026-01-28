@@ -120,7 +120,9 @@ header('Content-Type: text/html; charset=utf-8');
             $endYear = isset($_POST['end_year']) ? (int)$_POST['end_year'] : (int)($_GET['end_year'] ?? 2024);
             $action = $_POST['action'] ?? '';
             $run = isset($_GET['run']) && $_GET['run'] === '1';
-            $batchSize = isset($_GET['batch']) ? max(1, (int)$_GET['batch']) : 3; // makes per request
+            // IMPORTANT (Render free): PHP built-in server is single-threaded; long requests can fail health checks.
+            // Default to 1 make per request unless user explicitly increases it.
+            $batchSize = isset($_GET['batch']) ? max(1, (int)$_GET['batch']) : 1; // makes per request
             
             if (($action === 'populate' || $run) && $startYear > 0 && $endYear > 0 && $endYear >= $startYear) {
                 // IMPORTANT: Render-friendly batching (avoid long single HTTP request)
@@ -167,7 +169,8 @@ header('Content-Type: text/html; charset=utf-8');
                 // Load or initialize progress
                 $progressData = loadYmmProgress();
                 if (empty($progressData) || ($progressData['start_year'] ?? null) !== $startYear || ($progressData['end_year'] ?? null) !== $endYear) {
-                    $allMakes = $nhtsaService->getMakesForYear($startYear);
+                    // Use shorter timeouts so each request finishes quickly (avoid Render health check failures)
+                    $allMakes = $nhtsaService->getMakesForYear($startYear, 5);
                     $progressData = [
                         'start_year' => $startYear,
                         'end_year' => $endYear,
@@ -217,7 +220,8 @@ header('Content-Type: text/html; charset=utf-8');
                     echo "<script>updateStatus('Fetching models for {$year} {$make}...');</script>";
                     flush();
 
-                    $models = $nhtsaService->getModelsForMakeYear($make, $year);
+                    // Short timeout so the request doesn't block health checks
+                    $models = $nhtsaService->getModelsForMakeYear($make, $year, 4);
                     if (empty($models)) {
                         echo "<script>updateStatus('No models for {$year} {$make} — skip');</script>";
                         flush();
@@ -276,7 +280,7 @@ header('Content-Type: text/html; charset=utf-8');
                 $keyParam = $secretKey !== '' ? '&key=' . urlencode($secretKey) : '';
                 $nextUrl = "/populate-ymm-from-nhtsa.php?run=1&start_year={$startYear}&end_year={$endYear}&batch={$batchSize}{$keyParam}";
                 echo "<div class='info'>Continuing automatically...</div>";
-                echo "<script>setTimeout(function(){ window.location.href = " . json_encode($nextUrl) . "; }, 800);</script>";
+                echo "<script>setTimeout(function(){ window.location.href = " . json_encode($nextUrl) . "; }, 250);</script>";
                 flush();
 
             } else {

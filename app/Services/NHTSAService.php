@@ -88,10 +88,11 @@ class NHTSAService
      * Get all makes for a specific year from NHTSA vPIC API
      * 
      * @param int $year Model year
+     * @param int $timeoutSeconds Request timeout (seconds)
      * @return array List of makes
      * @throws Exception If API call fails
      */
-    public function getMakesForYear(int $year): array
+    public function getMakesForYear(int $year, int $timeoutSeconds = 15): array
     {
         // NHTSA vPIC API endpoint for getting makes by year
         $url = "https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?format=json";
@@ -100,11 +101,12 @@ class NHTSAService
         // and filter by year when getting models
         
         $ch = curl_init();
+        $timeoutSeconds = max(1, min(60, $timeoutSeconds));
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => $timeoutSeconds,
+            CURLOPT_CONNECTTIMEOUT => min(10, $timeoutSeconds),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0'
         ]);
@@ -151,26 +153,28 @@ class NHTSAService
      * 
      * @param string $make Vehicle make
      * @param int $year Model year
+     * @param int $timeoutSeconds Request timeout (seconds)
      * @return array List of models
      * @throws Exception If API call fails
      */
-    public function getModelsForMakeYear(string $make, int $year): array
+    public function getModelsForMakeYear(string $make, int $year, int $timeoutSeconds = 20): array
     {
         $make = urlencode($make);
         $url = "https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/{$make}/modelyear/{$year}?format=json";
         
         $ch = curl_init();
+        $timeoutSeconds = max(1, min(60, $timeoutSeconds));
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 20, // Reduced to 20 seconds to fail faster
-            CURLOPT_CONNECTTIMEOUT => 10, // Reduced to 10 seconds
+            CURLOPT_TIMEOUT => $timeoutSeconds,
+            CURLOPT_CONNECTTIMEOUT => min(10, $timeoutSeconds),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT => 'TireShopFitmentApp/1.0',
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_MAXREDIRS => 3,
-            CURLOPT_TIMEOUT_MS => 20000, // 20 seconds in milliseconds (hard limit)
-            CURLOPT_CONNECTTIMEOUT_MS => 10000 // 10 seconds in milliseconds
+            CURLOPT_TIMEOUT_MS => $timeoutSeconds * 1000, // hard limit
+            CURLOPT_CONNECTTIMEOUT_MS => min(10, $timeoutSeconds) * 1000
         ]);
         
         $response = curl_exec($ch);
