@@ -169,8 +169,27 @@ header('Content-Type: text/html; charset=utf-8');
                 // Load or initialize progress
                 $progressData = loadYmmProgress();
                 if (empty($progressData) || ($progressData['start_year'] ?? null) !== $startYear || ($progressData['end_year'] ?? null) !== $endYear) {
-                    // Use shorter timeouts so each request finishes quickly (avoid Render health check failures)
-                    $allMakes = $nhtsaService->getMakesForYear($startYear, 5);
+                    // Fetch makes with retry logic (this is only done once at the start)
+                    $allMakes = [];
+                    $maxRetries = 3;
+                    $retryDelay = 2; // seconds
+                    
+                    for ($retry = 0; $retry < $maxRetries; $retry++) {
+                        try {
+                            // Use longer timeout for makes fetch (only done once, so it's okay)
+                            $allMakes = $nhtsaService->getMakesForYear($startYear, 15);
+                            break; // Success
+                        } catch (Exception $e) {
+                            if ($retry < $maxRetries - 1) {
+                                echo "<div class='warning'>⚠️ Failed to fetch makes (attempt " . ($retry + 1) . "/{$maxRetries}): " . htmlspecialchars($e->getMessage()) . ". Retrying in {$retryDelay}s...</div>";
+                                flush();
+                                sleep($retryDelay);
+                            } else {
+                                throw new Exception("Failed to fetch makes after {$maxRetries} attempts: " . $e->getMessage());
+                            }
+                        }
+                    }
+                    
                     $progressData = [
                         'start_year' => $startYear,
                         'end_year' => $endYear,

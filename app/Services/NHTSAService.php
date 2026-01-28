@@ -114,7 +114,13 @@ class NHTSAService
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
+        $curlErrno = curl_errno($ch);
         curl_close($ch);
+        
+        // Handle timeout errors specifically
+        if ($curlErrno === CURLE_OPERATION_TIMEDOUT || $curlErrno === CURLE_OPERATION_TIMEOUTED) {
+            throw new Exception("API request timed out after {$timeoutSeconds} seconds");
+        }
         
         if ($error) {
             throw new Exception("API request failed: " . $error);
@@ -122,6 +128,10 @@ class NHTSAService
         
         if ($httpCode !== 200) {
             throw new Exception("API returned HTTP code: " . $httpCode);
+        }
+        
+        if (empty($response)) {
+            throw new Exception("API returned empty response");
         }
         
         $data = json_decode($response, true);
