@@ -30,6 +30,47 @@ use App\Services\NHTSAService;
 use App\Models\VehicleFitment;
 use App\Database\Connection;
 
+/**
+ * Render-friendly batch runner
+ * ---------------------------
+ * Long-running HTTP requests frequently get interrupted on free tiers.
+ * This script supports a "batch mode" that processes a small number of makes
+ * per request, then auto-redirects to continue.
+ */
+function ymmProgressFile(): string
+{
+    $dir = sys_get_temp_dir();
+    return rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ymm_population_progress.json';
+}
+
+function loadYmmProgress(): array
+{
+    $file = ymmProgressFile();
+    if (!file_exists($file)) {
+        return [];
+    }
+    $raw = @file_get_contents($file);
+    if ($raw === false || trim($raw) === '') {
+        return [];
+    }
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+
+function saveYmmProgress(array $data): void
+{
+    $file = ymmProgressFile();
+    @file_put_contents($file, json_encode($data));
+}
+
+function resetYmmProgress(): void
+{
+    $file = ymmProgressFile();
+    if (file_exists($file)) {
+        @unlink($file);
+    }
+}
+
 // Security check
 $importAllowed = $_ENV['IMPORT_ALLOWED'] ?? $_SERVER['IMPORT_ALLOWED'] ?? 'false';
 $secretKey = $_GET['key'] ?? '';
@@ -75,19 +116,32 @@ header('Content-Type: text/html; charset=utf-8');
             $db = Connection::getInstance();
             
             // Get year range (default: 2010-2024, or from POST)
-            $startYear = isset($_POST['start_year']) ? (int)$_POST['start_year'] : 2010;
-            $endYear = isset($_POST['end_year']) ? (int)$_POST['end_year'] : 2024;
+            $startYear = isset($_POST['start_year']) ? (int)$_POST['start_year'] : (int)($_GET['start_year'] ?? 2010);
+            $endYear = isset($_POST['end_year']) ? (int)$_POST['end_year'] : (int)($_GET['end_year'] ?? 2024);
             $action = $_POST['action'] ?? '';
+            $run = isset($_GET['run']) && $_GET['run'] === '1';
+            $batchSize = isset($_GET['batch']) ? max(1, (int)$_GET['batch']) : 3; // makes per request
             
-            if ($action === 'populate' && $startYear > 0 && $endYear > 0 && $endYear >= $startYear) {
-                // Set longer execution time and memory limit
-                set_time_limit(3600); // 1 hour
-                @ini_set('max_execution_time', 3600);
-                @ini_set('memory_limit', '512M'); // Increase memory limit for large datasets
-                ignore_user_abort(true); // Continue even if user closes browser
-                
-                echo "<div class='info'>Starting population for years {$startYear} to {$endYear}...</div>";
-                echo "<div class='info' style='background: #fff3cd;'>⏱️ This may take 30-60 minutes. Keep this page open. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
+            if (($action === 'populate' || $run) && $startYear > 0 && $endYear > 0 && $endYear >= $startYear) {
+                // IMPORTANT: Render-friendly batching (avoid long single HTTP request)
+                @ini_set('max_execution_time', 120);
+                @ini_set('memory_limit', '512M');
+                ignore_user_abort(true);
+                @set_time_limit(120);
+
+                // If this is a fresh POST "start", reset progress and redirect to batch runner
+                if ($action === 'populate' && !$run) {
+                    resetYmmProgress();
+                    $keyParam = $secretKey !== '' ? '&key=' . urlencode($secretKey) : '';
+                    $nextUrl = "/populate-ymm-from-nhtsa.php?run=1&start_year={$startYear}&end_year={$endYear}&batch={$batchSize}{$keyParam}";
+                    echo "<div class='info'>Starting batch population (Render-friendly). Redirecting...</div>";
+                    echo "<script>setTimeout(function(){ window.location.href = " . json_encode($nextUrl) . "; }, 500);</script>";
+                    flush();
+                    return;
+                }
+
+                echo "<div class='info'>Batch population running for years {$startYear} to {$endYear} (batch={$batchSize} makes/request)...</div>";
+                echo "<div class='info' style='background: #fff3cd;'>⏱️ Keep this tab open. If it reloads, it will resume. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
                 echo "<div class='progress'><div class='progress-bar' id='progress' style='width: 0%'>0%</div></div>";
                 echo "<div id='status-log' style='max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;'></div>";
                 echo "<script>
@@ -98,375 +152,133 @@ header('Content-Type: text/html; charset=utf-8');
                         log.scrollTop = log.scrollHeight;
                         document.getElementById('last-update').textContent = time;
                     }
-                    updateStatus('Script started');
                 </script>";
                 flush();
-                
-                $totalYears = $endYear - $startYear + 1;
-                $currentYear = 0;
-                $totalInserted = 0;
-                $totalSkipped = 0;
-                $errors = [];
-                
-                // Get all makes first (once, not per year)
-                echo "<div class='info'>Fetching all makes from NHTSA...</div>";
-                echo "<script>updateStatus('Fetching makes from NHTSA API...');</script>";
-                flush();
-                
-                try {
-                    $allMakes = $nhtsaService->getMakesForYear($startYear);
-                    echo "<div class='success'>Found " . count($allMakes) . " makes</div>";
-                    echo "<script>updateStatus('Found " . count($allMakes) . " makes');</script>";
-                    flush();
-                } catch (Exception $e) {
-                    echo "<div class='error'>Failed to fetch makes: " . htmlspecialchars($e->getMessage()) . "</div>";
-                    echo "<script>updateStatus('ERROR: Failed to fetch makes');</script>";
-                    flush();
-                    throw $e;
-                }
-                
+
                 // Disable output buffering for real-time updates
                 if (ob_get_level()) {
-                    ob_end_flush();
+                    @ob_end_flush();
                 }
                 @ini_set('output_buffering', 'off');
-                // Suppress warning if headers already sent (not critical)
                 if (!headers_sent()) {
                     @ini_set('zlib.output_compression', false);
                 }
-                
-                // Process each year
-                $makeIndex = 0;
+
+                // Load or initialize progress
+                $progressData = loadYmmProgress();
+                if (empty($progressData) || ($progressData['start_year'] ?? null) !== $startYear || ($progressData['end_year'] ?? null) !== $endYear) {
+                    $allMakes = $nhtsaService->getMakesForYear($startYear);
+                    $progressData = [
+                        'start_year' => $startYear,
+                        'end_year' => $endYear,
+                        'current_year' => $startYear,
+                        'make_offset' => 0,
+                        'makes' => $allMakes,
+                        'total_inserted' => 0,
+                        'total_skipped' => 0,
+                    ];
+                    saveYmmProgress($progressData);
+                }
+
+                $allMakes = $progressData['makes'] ?? [];
                 $totalMakes = count($allMakes);
-                
-                // Wrap year loop in try-catch to prevent script from stopping
-                for ($year = $startYear; $year <= $endYear; $year++) {
-                    try {
-                        $currentYear++;
-                        $progress = round(($currentYear / $totalYears) * 100);
-                        echo "<div class='info' id='year-{$year}'>Processing year {$year} ({$currentYear}/{$totalYears})... <span id='make-progress-{$year}'>Make 0/{$totalMakes}</span></div>";
-                        echo "<script>document.getElementById('progress').style.width = '{$progress}%'; document.getElementById('progress').textContent = '{$progress}%';</script>";
+                $year = (int)($progressData['current_year'] ?? $startYear);
+                $makeOffset = (int)($progressData['make_offset'] ?? 0);
+
+                if ($year > $endYear) {
+                    echo "<div class='success'><h2>✓ Population Complete!</h2></div>";
+                    resetYmmProgress();
+                    return;
+                }
+
+                // Progress bar based on year + make offset
+                $totalYears = $endYear - $startYear + 1;
+                $yearIndex = ($year - $startYear);
+                $yearProgress = ($yearIndex / max(1, $totalYears)) * 100;
+                $makeProgress = ($totalMakes > 0) ? (($makeOffset / $totalMakes) * (100 / max(1, $totalYears))) : 0;
+                $progressPct = (int)min(99, round($yearProgress + $makeProgress));
+                echo "<script>document.getElementById('progress').style.width = '{$progressPct}%'; document.getElementById('progress').textContent = '{$progressPct}%';</script>";
+
+                $batchStart = $makeOffset;
+                $batchEnd = min($totalMakes, $makeOffset + $batchSize);
+                echo "<div class='info'>Processing year {$year} — makes " . ($batchStart + 1) . " to {$batchEnd} of {$totalMakes}</div>";
+                echo "<script>updateStatus('Year {$year}: starting batch makes " . ($batchStart + 1) . "-{$batchEnd}');</script>";
+                flush();
+
+                $yearInserted = 0;
+                $yearSkipped = 0;
+
+                for ($i = $batchStart; $i < $batchEnd; $i++) {
+                    $make = $allMakes[$i] ?? null;
+                    if (!$make) {
+                        continue;
+                    }
+
+                    echo "<script>updateStatus('Fetching models for {$year} {$make}...');</script>";
+                    flush();
+
+                    $models = $nhtsaService->getModelsForMakeYear($make, $year);
+                    if (empty($models)) {
+                        echo "<script>updateStatus('No models for {$year} {$make} — skip');</script>";
                         flush();
-                        if (function_exists('fastcgi_finish_request')) {
-                            fastcgi_finish_request();
-                        }
-                        
-                        $yearInserted = 0;
-                        $yearSkipped = 0;
-                        $makeIndex = 0;
-                    
-                        // For each make, get models
-                        foreach ($allMakes as $makeIndex => $make) {
-                            $makeIndex++;
-                            $makeProgress = round(($makeIndex / $totalMakes) * 100);
-                            
-                            // Update make progress every make (for better visibility)
-                            echo "<script>
-                                document.getElementById('make-progress-{$year}').textContent = 'Make {$makeIndex}/{$totalMakes} ({$makeProgress}%) - {$make}';
-                                updateStatus('Year {$year}: Processing {$make} ({$makeIndex}/{$totalMakes})');
-                            </script>";
-                            flush();
-                            
-                            // Force output flush and send heartbeat
-                            if (function_exists('fastcgi_finish_request')) {
-                                fastcgi_finish_request();
-                            }
-                            
-                            // Reset execution time limit for each make (prevents timeout)
-                            @set_time_limit(60); // Reset to 60 seconds per make
-                        
+                        continue;
+                    }
+
+                    $modelCount = 0;
+                    foreach ($models as $model) {
+                        $modelCount++;
+                        // Keep each request small; we do a simple existence check via getFitment()
                         try {
-                            // Add timeout wrapper with maximum execution time per make
-                            $startTime = microtime(true);
-                            $maxTimePerMake = 25; // Maximum 25 seconds per make
-                            
-                            echo "<script>updateStatus('Fetching models for {$year} {$make}...');</script>";
-                            flush();
-                            
-                            // Use a timeout mechanism to prevent hanging
-                            $models = [];
-                            $apiCallStart = microtime(true);
-                            
-                            try {
-                                $models = $nhtsaService->getModelsForMakeYear($make, $year);
-                            } catch (Exception $apiError) {
-                                // If API call fails, log but continue
-                                $elapsed = round(microtime(true) - $apiCallStart, 2);
-                                echo "<script>updateStatus('API error for {$make} after {$elapsed}s - skipping: ' + " . json_encode($apiError->getMessage()) . ");</script>";
-                                flush();
-                                continue; // Skip to next make
+                            $existing = $fitmentModel->getFitment($year, $make, $model, null);
+                            if ($existing) {
+                                $yearSkipped++;
+                                $progressData['total_skipped']++;
+                                continue;
                             }
-                            
-                            $elapsed = round(microtime(true) - $startTime, 2);
-                            
-                            // Check if we exceeded maximum time (safety check)
-                            if ($elapsed > $maxTimePerMake) {
-                                echo "<script>updateStatus('⚠️ {$make} took {$elapsed}s (exceeded {$maxTimePerMake}s limit) - continuing...');</script>";
-                                flush();
-                            }
-                            
-                            echo "<script>updateStatus('Got " . count($models) . " models for {$make} in {$elapsed}s');</script>";
-                            flush();
-                            
-                            if (empty($models)) {
-                                echo "<script>updateStatus('No models found for {$year} {$make} - skipping');</script>";
-                                flush();
-                                continue; // Skip makes with no models for this year
-                            }
-                            
-                            $modelCount = 0;
-                            $insertStartTime = microtime(true);
-                            $maxTimePerModel = 3; // Reduced to 3 seconds per model operation
-                            $modelsProcessed = 0;
-                            $maxModelsWithoutProgress = 10; // Skip make if 10 models fail in a row
-                            
-                            // Insert each model (without tire sizes - those will be added later via AI or manual entry)
-                            foreach ($models as $modelIndex => $model) {
-                                $modelCount++;
-                                $modelStartTime = microtime(true);
-                                
-                                // Reset execution time limit for each model
-                                @set_time_limit(20);
-                                
-                                // Update status for every model (more frequent updates)
-                                echo "<script>updateStatus('Processing model {$modelCount}/" . count($models) . " for {$make}: {$model}');</script>";
-                                flush();
-                                
-                                // Force output flush
-                                if (function_exists('fastcgi_finish_request')) {
-                                    fastcgi_finish_request();
-                                }
-                                
-                                // Check if already exists (with aggressive timeout protection)
-                                $existing = null;
-                                $checkStartTime = microtime(true);
-                                $checkTimeout = 2; // 2 seconds max for check operation
-                                
-                                try {
-                                    // Use a simple timeout wrapper
-                                    $checkCompleted = false;
-                                    $checkResult = null;
-                                    
-                                    // Try to get fitment with timeout protection
-                                    $checkElapsed = 0;
-                                    while ($checkElapsed < $checkTimeout && !$checkCompleted) {
-                                        try {
-                                            $existing = $fitmentModel->getFitment($year, $make, $model, null);
-                                            $checkCompleted = true;
-                                            break;
-                                        } catch (\PDOException $checkError) {
-                                            $checkElapsed = microtime(true) - $checkStartTime;
-                                            if ($checkElapsed >= $checkTimeout) {
-                                                // Timeout - skip this model
-                                                echo "<script>updateStatus('⚠️ Timeout checking {$make} {$model} ({$checkElapsed}s) - skipping');</script>";
-                                                flush();
-                                                $yearSkipped++;
-                                                $totalSkipped++;
-                                                $modelsProcessed++;
-                                                continue 2; // Skip to next model
-                                            }
-                                            // Very short wait before retry
-                                            usleep(10000); // 0.01 second
-                                        }
-                                    }
-                                    
-                                    // Final timeout check
-                                    if (!$checkCompleted) {
-                                        echo "<script>updateStatus('⚠️ Timeout checking {$make} {$model} - skipping');</script>";
-                                        flush();
-                                        $yearSkipped++;
-                                        $totalSkipped++;
-                                        $modelsProcessed++;
-                                        continue; // Skip to next model
-                                    }
-                                } catch (Exception $checkError) {
-                                    echo "<script>updateStatus('ERROR checking {$make} {$model} - skipping');</script>";
-                                    flush();
-                                    $yearSkipped++;
-                                    $totalSkipped++;
-                                    $modelsProcessed++;
-                                    continue; // Skip to next model
-                                }
-                                
-                                if (!$existing) {
-                                    // Insert new entry (without tire sizes - will be populated later)
-                                    $inserted = false;
-                                    $insertStartTime = microtime(true);
-                                    $insertTimeout = 2; // 2 seconds max for insert
-                                    
-                                    try {
-                                        // Try insert with timeout protection
-                                        $insertElapsed = 0;
-                                        $lastException = null;
-                                        
-                                        while ($insertElapsed < $insertTimeout && !$inserted) {
-                                            try {
-                                                $fitmentModel->addFitment([
-                                                    'year' => $year,
-                                                    'make' => $make,
-                                                    'model' => $model,
-                                                    'trim' => null,
-                                                    'front_tire' => 'TBD', // Placeholder - will be updated via AI or manual entry
-                                                    'rear_tire' => null,
-                                                    'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
-                                                ]);
-                                                $yearInserted++;
-                                                $totalInserted++;
-                                                $inserted = true;
-                                                $modelsProcessed++;
-                                                
-                                                // Update status every 5 models (but always flush)
-                                                if ($modelCount % 5 === 0) {
-                                                    echo "<script>updateStatus('✓ Inserted {$modelCount}/" . count($models) . " models for {$make}');</script>";
-                                                }
-                                                flush();
-                                                
-                                                // Force output flush
-                                                if (function_exists('fastcgi_finish_request')) {
-                                                    fastcgi_finish_request();
-                                                }
-                                                break; // Success
-                                            } catch (\PDOException $e) {
-                                                $lastException = $e;
-                                                $insertElapsed = microtime(true) - $insertStartTime;
-                                                
-                                                // Check for duplicate (not an error)
-                                                if (strpos($e->getMessage(), 'duplicate') !== false || strpos($e->getMessage(), 'UNIQUE') !== false) {
-                                                    $yearSkipped++;
-                                                    $totalSkipped++;
-                                                    $inserted = true; // Mark as handled
-                                                    $modelsProcessed++;
-                                                    break;
-                                                }
-                                                
-                                                // Check timeout
-                                                if ($insertElapsed >= $insertTimeout) {
-                                                    echo "<script>updateStatus('⚠️ Timeout inserting {$make} {$model} ({$insertElapsed}s) - skipping');</script>";
-                                                    flush();
-                                                    $yearSkipped++;
-                                                    $totalSkipped++;
-                                                    $modelsProcessed++;
-                                                    break; // Exit insert loop
-                                                }
-                                                
-                                                // Very short wait before retry
-                                                usleep(10000); // 0.01 second
-                                                $insertElapsed = microtime(true) - $insertStartTime; // Update elapsed time
-                                            }
-                                        }
-                                        
-                                        // Final timeout check
-                                        if (!$inserted) {
-                                            // Insert failed - log and skip
-                                            $errorMsg = $lastException ? $lastException->getMessage() : 'Timeout or unknown error';
-                                            echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
-                                            flush();
-                                            $yearSkipped++;
-                                            $totalSkipped++;
-                                            $modelsProcessed++;
-                                        }
-                                    } catch (Exception $e) {
-                                        echo "<script>updateStatus('ERROR inserting {$make} {$model} - skipping');</script>";
-                                        flush();
-                                        $yearSkipped++;
-                                        $totalSkipped++;
-                                        $modelsProcessed++;
-                                    }
-                                } else {
-                                    $yearSkipped++;
-                                    $totalSkipped++;
-                                    $modelsProcessed++;
-                                }
-                                
-                                // Check if this model took too long (watchdog)
-                                $modelElapsed = microtime(true) - $modelStartTime;
-                                if ($modelElapsed > $maxTimePerModel) {
-                                    echo "<script>updateStatus('⚠️ Model {$modelCount} took {$modelElapsed}s');</script>";
-                                    flush();
-                                }
-                                
-                                // Skip entire make if too many models are failing
-                                if ($modelsProcessed > 0 && ($yearSkipped + $yearInserted) > 0) {
-                                    $failureRate = $yearSkipped / ($yearSkipped + $yearInserted);
-                                    if ($failureRate > 0.8 && $modelsProcessed >= $maxModelsWithoutProgress) {
-                                        echo "<script>updateStatus('⚠️ High failure rate for {$make} ({$failureRate}%) - skipping remaining models');</script>";
-                                        flush();
-                                        break; // Skip to next make
-                                    }
-                                }
-                            }
-                            
-                            $insertTime = round(microtime(true) - $insertStartTime, 2);
-                            
-                            echo "<script>updateStatus('Completed {$make}: " . count($models) . " models, {$yearInserted} inserted');</script>";
-                            flush();
-                            
-                            // Small delay to avoid rate limiting (reduced for faster processing)
-                            usleep(50000); // 0.05 second
-                            
+                            $fitmentModel->addFitment([
+                                'year' => $year,
+                                'make' => $make,
+                                'model' => $model,
+                                'trim' => null,
+                                'front_tire' => 'TBD',
+                                'rear_tire' => null,
+                                'notes' => 'Populated from NHTSA vPIC API - tire sizes to be determined via AI or manual entry'
+                            ]);
+                            $yearInserted++;
+                            $progressData['total_inserted']++;
                         } catch (Exception $e) {
-                            $errorMsg = "Error fetching models for {$year} {$make}: " . $e->getMessage();
-                            $errors[] = $errorMsg;
-                            
-                            // Only show warning for non-critical errors (JSON parse errors are handled gracefully now)
-                            if (strpos($e->getMessage(), 'parse') === false && strpos($e->getMessage(), 'JSON') === false) {
-                                echo "<div class='warning'>⚠️ {$errorMsg}</div>";
-                            }
-                            
-                            echo "<script>updateStatus('⚠️ Skipping {$make} due to error - continuing...');</script>";
+                            $yearSkipped++;
+                            $progressData['total_skipped']++;
+                        }
+
+                        if ($modelCount % 10 === 0) {
+                            echo "<script>updateStatus('{$make}: processed {$modelCount}/" . count($models) . " models');</script>";
                             flush();
-                            
-                            // Small delay before continuing
-                            usleep(50000);
-                            
-                            // Continue to next make instead of stopping
-                            continue;
                         }
-                        }
-                        
-                        echo "<div class='success' id='year-result-{$year}'>✓ Year {$year} Complete: Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
-                        flush();
-                    } catch (Exception $yearError) {
-                        // Catch any unexpected errors in year processing and continue
-                        $errorMsg = "Unexpected error processing year {$year}: " . $yearError->getMessage();
-                        $errors[] = $errorMsg;
-                        echo "<div class='warning'>⚠️ {$errorMsg}</div>";
-                        echo "<script>updateStatus('⚠️ Error processing year {$year} - continuing to next year...');</script>";
-                        flush();
-                        // Continue to next year instead of stopping
                     }
+
+                    echo "<script>updateStatus('Completed {$make}: " . count($models) . " models, {$yearInserted} inserted so far');</script>";
+                    flush();
                 }
-                
-                echo "<div class='progress'><div class='progress-bar' style='width: 100%'>100%</div></div>";
-                echo "<div class='success'>";
-                echo "<h2>✓ Population Complete!</h2>";
-                echo "<p><strong>Total Inserted:</strong> {$totalInserted} vehicle entries</p>";
-                echo "<p><strong>Total Skipped:</strong> {$totalSkipped} (already existed)</p>";
-                echo "<p><strong>Years Processed:</strong> {$startYear} to {$endYear}</p>";
-                echo "</div>";
-                
-                if (!empty($errors)) {
-                    echo "<div class='warning'>";
-                    echo "<h3>Errors encountered (" . count($errors) . "):</h3>";
-                    echo "<pre>" . htmlspecialchars(implode("\n", array_slice($errors, 0, 50))) . "</pre>";
-                    if (count($errors) > 50) {
-                        echo "<p>... and " . (count($errors) - 50) . " more errors</p>";
-                    }
-                    echo "</div>";
+
+                // Advance progress
+                $makeOffset = $batchEnd;
+                if ($makeOffset >= $totalMakes) {
+                    echo "<div class='success'>✓ Year {$year} batch complete. Inserted {$yearInserted}, Skipped {$yearSkipped}</div>";
+                    $year++;
+                    $makeOffset = 0;
                 }
-                
-                // Show current database stats
-                try {
-                    $stmt = $db->query("SELECT COUNT(DISTINCT year) as years, COUNT(DISTINCT make) as makes, COUNT(DISTINCT model) as models, COUNT(*) as total FROM vehicle_fitment");
-                    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
-                    echo "<div class='info'>";
-                    echo "<h3>Current Database Statistics:</h3>";
-                    echo "<p>Years: {$stats['years']}, Makes: {$stats['makes']}, Models: {$stats['models']}, Total Entries: {$stats['total']}</p>";
-                    echo "</div>";
-                } catch (Exception $e) {
-                    // Ignore stats errors
-                }
-                
+
+                $progressData['current_year'] = $year;
+                $progressData['make_offset'] = $makeOffset;
+                saveYmmProgress($progressData);
+
+                $keyParam = $secretKey !== '' ? '&key=' . urlencode($secretKey) : '';
+                $nextUrl = "/populate-ymm-from-nhtsa.php?run=1&start_year={$startYear}&end_year={$endYear}&batch={$batchSize}{$keyParam}";
+                echo "<div class='info'>Continuing automatically...</div>";
+                echo "<script>setTimeout(function(){ window.location.href = " . json_encode($nextUrl) . "; }, 800);</script>";
+                flush();
+
             } else {
                 // Show form
                 ?>
