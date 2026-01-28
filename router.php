@@ -172,6 +172,16 @@ if ($uri === '/populate-ymm-from-nhtsa.php') {
     }
 }
 
+// Route populate-2018-2025 script
+if ($uri === '/populate-2018-2025.php') {
+    $file = __DIR__ . '/public/populate-2018-2025.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/populate-2018-2025.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
