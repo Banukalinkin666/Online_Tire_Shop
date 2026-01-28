@@ -147,13 +147,106 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<div class='progress'><div class='progress-bar' id='progress' style='width: 0%'>0%</div></div>";
                 echo "<div id='status-log' style='max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;'></div>";
                 echo "<script>
+                    let lastUpdateTime = Date.now();
+                    let refreshCount = 0;
+                    const MAX_REFRESH_DELAY = 30000; // 30 seconds - if no update for this long, refresh
+                    const CHECK_INTERVAL = 5000; // Check every 5 seconds
+                    
                     function updateStatus(message) {
                         const log = document.getElementById('status-log');
+                        if (!log) return; // Page might be reloading
                         const time = new Date().toLocaleTimeString();
                         log.innerHTML += '<div style=\"padding: 2px 0; font-size: 12px;\">[' + time + '] ' + message + '</div>';
                         log.scrollTop = log.scrollHeight;
-                        document.getElementById('last-update').textContent = time;
+                        const lastUpdateEl = document.getElementById('last-update');
+                        if (lastUpdateEl) {
+                            lastUpdateEl.textContent = time;
+                        }
+                        lastUpdateTime = Date.now(); // Reset timer on any update
+                        refreshCount = 0; // Reset refresh count on successful update
                     }
+                    
+                    // Check for 502 Bad Gateway error
+                    function checkFor502Error() {
+                        const title = document.title.toLowerCase();
+                        const bodyText = document.body ? document.body.innerText.toLowerCase() : '';
+                        
+                        // Check for 502 error indicators
+                        if (title.includes('502') || 
+                            title.includes('bad gateway') ||
+                            bodyText.includes('502') ||
+                            bodyText.includes('bad gateway') ||
+                            bodyText.includes('service is currently unavailable') ||
+                            bodyText.includes('powered by render')) {
+                            console.log('502 Bad Gateway detected - auto-refreshing...');
+                            autoRefresh();
+                            return true;
+                        }
+                        return false;
+                    }
+                    
+                    // Auto-refresh function (preserves URL parameters)
+                    function autoRefresh() {
+                        refreshCount++;
+                        const currentUrl = window.location.href;
+                        console.log('Auto-refreshing (attempt ' + refreshCount + '): ' + currentUrl);
+                        
+                        // Show message before refresh
+                        const container = document.querySelector('.container');
+                        if (container) {
+                            const refreshMsg = document.createElement('div');
+                            refreshMsg.className = 'warning';
+                            refreshMsg.innerHTML = '⚠️ Detected issue - Auto-refreshing in 2 seconds... (Attempt ' + refreshCount + ')';
+                            container.insertBefore(refreshMsg, container.firstChild);
+                        }
+                        
+                        // Refresh after 2 seconds
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                    
+                    // Monitor for stuck state (no updates for too long)
+                    function checkStuckState() {
+                        const timeSinceLastUpdate = Date.now() - lastUpdateTime;
+                        
+                        // If no update for MAX_REFRESH_DELAY, assume stuck and refresh
+                        if (timeSinceLastUpdate > MAX_REFRESH_DELAY) {
+                            console.log('No updates for ' + Math.round(timeSinceLastUpdate / 1000) + ' seconds - refreshing...');
+                            updateStatus('⚠️ No updates detected - auto-refreshing to resume...');
+                            autoRefresh();
+                        }
+                    }
+                    
+                    // Initialize monitoring
+                    (function() {
+                        // Check for 502 error immediately
+                        if (checkFor502Error()) {
+                            return; // Will refresh, no need to continue
+                        }
+                        
+                        // Set initial update time
+                        lastUpdateTime = Date.now();
+                        
+                        // Monitor every CHECK_INTERVAL
+                        setInterval(function() {
+                            // First check for 502 error
+                            if (checkFor502Error()) {
+                                return;
+                            }
+                            
+                            // Then check for stuck state
+                            checkStuckState();
+                        }, CHECK_INTERVAL);
+                        
+                        // Also check on page visibility change (user switches tabs)
+                        document.addEventListener('visibilitychange', function() {
+                            if (!document.hidden) {
+                                // Page became visible - check for errors
+                                checkFor502Error();
+                            }
+                        });
+                    })();
                 </script>";
                 flush();
 
