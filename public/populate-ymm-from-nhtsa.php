@@ -89,6 +89,15 @@ header('Content-Type: text/html; charset=utf-8');
 <html>
 <head>
     <title>Populate Year/Make/Model from NHTSA</title>
+    <meta charset="utf-8">
+    <?php
+    // Add meta refresh for auto-recovery (works even if JavaScript fails)
+    if (isset($_GET['run']) && $_GET['run'] === '1') {
+        $currentUrl = $_SERVER['REQUEST_URI'] ?? '/populate-ymm-from-nhtsa.php';
+        $refreshUrl = htmlspecialchars($currentUrl, ENT_QUOTES, 'UTF-8');
+        echo "<meta http-equiv='refresh' content='45;url={$refreshUrl}'>"; // Fallback: refresh every 45 seconds
+    }
+    ?>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: Arial, sans-serif; }
@@ -143,7 +152,7 @@ header('Content-Type: text/html; charset=utf-8');
                 }
 
                 echo "<div class='info'>Batch population running for years {$startYear} to {$endYear} (batch={$batchSize} makes/request)...</div>";
-                echo "<div class='info' style='background: #fff3cd;'>⏱️ Keep this tab open. If it reloads, it will resume. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
+                echo "<div class='info' style='background: #fff3cd;'>⏱️ Keep this tab open. Auto-refresh enabled. Last update: <span id='last-update'>" . date('H:i:s') . "</span></div>";
                 echo "<div class='progress'><div class='progress-bar' id='progress' style='width: 0%'>0%</div></div>";
                 echo "<div id='status-log' style='max-height: 400px; overflow-y: auto; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;'></div>";
                 echo "<script>
@@ -166,21 +175,49 @@ header('Content-Type: text/html; charset=utf-8');
                         refreshCount = 0; // Reset refresh count on successful update
                     }
                     
-                    // Check for 502 Bad Gateway error
+                    // Check for 502 Bad Gateway error (aggressive detection)
                     function checkFor502Error() {
-                        const title = document.title.toLowerCase();
-                        const bodyText = document.body ? document.body.innerText.toLowerCase() : '';
-                        
-                        // Check for 502 error indicators
-                        if (title.includes('502') || 
-                            title.includes('bad gateway') ||
-                            bodyText.includes('502') ||
-                            bodyText.includes('bad gateway') ||
-                            bodyText.includes('service is currently unavailable') ||
-                            bodyText.includes('powered by render')) {
-                            console.log('502 Bad Gateway detected - auto-refreshing...');
-                            autoRefresh();
-                            return true;
+                        try {
+                            // Check immediately on page load
+                            const title = (document.title || '').toLowerCase();
+                            const bodyText = document.body ? (document.body.innerText || '').toLowerCase() : '';
+                            const bodyHTML = document.body ? (document.body.innerHTML || '').toLowerCase() : '';
+                            const fullHTML = (document.documentElement.innerHTML || '').toLowerCase();
+                            
+                            // Check for 502 error indicators (comprehensive)
+                            const errorPatterns = [
+                                '502',
+                                'bad gateway',
+                                'service is currently unavailable',
+                                'powered by render',
+                                'request id:',
+                                'this service is currently unavailable'
+                            ];
+                            
+                            const is502Error = errorPatterns.some(pattern => 
+                                title.includes(pattern) ||
+                                bodyText.includes(pattern) ||
+                                bodyHTML.includes(pattern) ||
+                                fullHTML.includes(pattern)
+                            );
+                            
+                            if (is502Error) {
+                                console.log('502 Bad Gateway detected - auto-refreshing in 2 seconds...');
+                                // Show message if possible
+                                if (document.body) {
+                                    const msg = document.createElement('div');
+                                    msg.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:10px;text-align:center;z-index:99999;';
+                                    msg.textContent = '⚠️ 502 Error Detected - Auto-refreshing in 2 seconds...';
+                                    document.body.appendChild(msg);
+                                }
+                                // Refresh after short delay
+                                setTimeout(function() {
+                                    window.location.reload();
+                                }, 2000);
+                                return true;
+                            }
+                        } catch (e) {
+                            console.error('Error checking for 502:', e);
                         }
                         return false;
                     }
@@ -218,34 +255,59 @@ header('Content-Type: text/html; charset=utf-8');
                         }
                     }
                     
-                    // Initialize monitoring
+                    // Run immediately - don't wait for anything
                     (function() {
-                        // Check for 502 error immediately
+                        // Check for 502 immediately (before DOM is ready)
                         if (checkFor502Error()) {
-                            return; // Will refresh, no need to continue
+                            return;
                         }
                         
-                        // Set initial update time
-                        lastUpdateTime = Date.now();
-                        
-                        // Monitor every CHECK_INTERVAL
-                        setInterval(function() {
-                            // First check for 502 error
+                        // Also check when DOM is ready
+                        function initMonitoring() {
+                            // Check for 502 error immediately
                             if (checkFor502Error()) {
-                                return;
+                                return; // Will refresh, no need to continue
                             }
                             
-                            // Then check for stuck state
-                            checkStuckState();
-                        }, CHECK_INTERVAL);
-                        
-                        // Also check on page visibility change (user switches tabs)
-                        document.addEventListener('visibilitychange', function() {
-                            if (!document.hidden) {
-                                // Page became visible - check for errors
+                            // Set initial update time
+                            lastUpdateTime = Date.now();
+                            
+                            // Monitor every CHECK_INTERVAL (more frequent checks)
+                            setInterval(function() {
+                                // First check for 502 error
+                                if (checkFor502Error()) {
+                                    return;
+                                }
+                                
+                                // Then check for stuck state
+                                checkStuckState();
+                            }, CHECK_INTERVAL);
+                            
+                            // Also check on page visibility change (user switches tabs)
+                            document.addEventListener('visibilitychange', function() {
+                                if (!document.hidden) {
+                                    // Page became visible - check for errors immediately
+                                    checkFor502Error();
+                                }
+                            });
+                            
+                            // Also check periodically even if page is hidden
+                            setInterval(function() {
                                 checkFor502Error();
-                            }
-                        });
+                            }, CHECK_INTERVAL);
+                        }
+                        
+                        // Run immediately if DOM is ready, otherwise wait
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', initMonitoring);
+                        } else {
+                            initMonitoring();
+                        }
+                        
+                        // Also check immediately (in case DOM is not ready but page is loaded)
+                        setTimeout(checkFor502Error, 100);
+                        setTimeout(checkFor502Error, 500);
+                        setTimeout(checkFor502Error, 1000);
                     })();
                 </script>";
                 flush();
