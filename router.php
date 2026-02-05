@@ -233,6 +233,16 @@ if ($uri === '/populate-1990-1999.php') {
     }
 }
 
+// Route populate-1980-1989 script
+if ($uri === '/populate-1980-1989.php') {
+    $file = __DIR__ . '/public/populate-1980-1989.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/populate-1980-1989.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
