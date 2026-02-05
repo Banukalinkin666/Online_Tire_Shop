@@ -9,46 +9,57 @@ $parsedUri = parse_url($_SERVER['REQUEST_URI']);
 $uri = $parsedUri['path'] ?? '/';
 
 // Route API requests to /api directory
-if (strpos($uri, '/api/') === 0) {
+if (strpos($uri, '/api/') === 0 || $uri === '/api') {
     // Extract the path after /api/
-    $apiPath = substr($uri, 5); // Remove '/api/' prefix (5 chars including trailing slash)
+    if ($uri === '/api') {
+        $apiPath = '';
+    } else {
+        $apiPath = substr($uri, 5); // Remove '/api/' prefix (5 chars including trailing slash)
+    }
     
-    // Security: prevent directory traversal (no .. or /)
-    if (strpos($apiPath, '..') !== false || strpos($apiPath, '/') === 0) {
+    // Security: prevent directory traversal
+    if (strpos($apiPath, '..') !== false) {
         http_response_code(403);
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => 'Invalid API path']);
         return true;
     }
     
-    // Build file path - simple and direct
-    $apiDir = __DIR__ . DIRECTORY_SEPARATOR . 'api';
-    $file = $apiDir . DIRECTORY_SEPARATOR . $apiPath;
+    // Normalize: remove leading/trailing slashes and normalize separators
+    $apiPath = trim($apiPath, '/\\');
     
-    // Check if file exists (simple check first)
-    if (file_exists($file) && is_file($file)) {
-        // Basic security: ensure path contains 'api' directory
-        $normalizedPath = str_replace(['\\', '/'], '/', strtolower($file));
-        $normalizedApiDir = str_replace(['\\', '/'], '/', strtolower($apiDir));
-        
-        if (strpos($normalizedPath, $normalizedApiDir) !== false) {
-            $_SERVER['SCRIPT_NAME'] = $uri;
-            require $file;
-            return true;
+    // Build file paths - try multiple variations for cross-platform compatibility
+    $apiDir = __DIR__ . DIRECTORY_SEPARATOR . 'api';
+    $apiDirAlt = __DIR__ . '/api';
+    
+    // Try with DIRECTORY_SEPARATOR first
+    $file = $apiDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $apiPath);
+    
+    // Try with forward slashes (for Linux/Docker)
+    $fileAlt = $apiDirAlt . '/' . str_replace('\\', '/', $apiPath);
+    
+    // Try each path
+    $foundFile = null;
+    foreach ([$file, $fileAlt] as $testFile) {
+        if (file_exists($testFile) && is_file($testFile)) {
+            // Security check: ensure file is within api directory
+            $realFile = realpath($testFile);
+            $realApiDir = realpath($apiDir) ?: realpath($apiDirAlt);
+            
+            if ($realFile && $realApiDir && strpos($realFile, $realApiDir) === 0) {
+                $foundFile = $testFile;
+                break;
+            }
         }
     }
     
-    // Try with forward slashes (for Docker/Linux)
-    $fileAlt = __DIR__ . '/api/' . $apiPath;
-    if (file_exists($fileAlt) && is_file($fileAlt)) {
+    if ($foundFile) {
         $_SERVER['SCRIPT_NAME'] = $uri;
-        require $fileAlt;
+        require $foundFile;
         return true;
     }
     
     // API file not found - return 404 with debug info
-    $apiDir = __DIR__ . '/api';
-    $apiDirAlt = __DIR__ . DIRECTORY_SEPARATOR . 'api';
     $apiFiles = [];
     if (is_dir($apiDir)) {
         $apiFiles = array_slice(scandir($apiDir), 2);
@@ -66,9 +77,9 @@ if (strpos($uri, '/api/') === 0) {
             'requested_uri' => $uri,
             'api_path' => $apiPath,
             'tested_file' => $file,
-            'tested_file_alt' => $fileAlt ?? 'N/A',
+            'tested_file_alt' => $fileAlt,
             'file_exists' => file_exists($file),
-            'file_alt_exists' => isset($fileAlt) ? file_exists($fileAlt) : false,
+            'file_alt_exists' => file_exists($fileAlt),
             'api_dir_exists' => is_dir($apiDir) || is_dir($apiDirAlt),
             'api_dir_path' => is_dir($apiDir) ? $apiDir : (is_dir($apiDirAlt) ? $apiDirAlt : 'NOT FOUND'),
             'api_dir_contents' => implode(', ', $apiFiles),
