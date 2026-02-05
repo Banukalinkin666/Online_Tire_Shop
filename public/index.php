@@ -207,71 +207,84 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 <div x-show="searchMode === 'ai'" class="space-y-4">
                     <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-4 rounded">
                         <p class="text-sm text-purple-800">
-                            <strong>🤖 AI Direct Search:</strong> Enter your vehicle details manually and get instant tire size detection using AI. No database lookup required.
+                            <strong>🤖 AI Direct Search:</strong> Select your vehicle details from the database and get instant tire size detection using AI.
                         </p>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Year (Manual Input) -->
+                        <!-- Year (Dropdown) -->
                         <div>
                             <label for="aiYear" class="block text-sm font-medium text-gray-700 mb-2">
                                 Year <span class="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="number" 
+                            <select 
                                 id="aiYear" 
                                 x-model="aiYear"
-                                min="1900"
-                                max="2100"
-                                placeholder="e.g., 2020"
+                                @change="loadAIMakes()"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                                 :disabled="loading || aiDetecting"
-                            />
+                            >
+                                <option value="">Select Year</option>
+                                <template x-for="year in years" :key="year">
+                                    <option :value="year" x-text="year"></option>
+                                </template>
+                            </select>
                         </div>
 
-                        <!-- Make (Manual Input) -->
+                        <!-- Make (Dropdown) -->
                         <div>
                             <label for="aiMake" class="block text-sm font-medium text-gray-700 mb-2">
                                 Make <span class="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="text" 
+                            <select 
                                 id="aiMake" 
                                 x-model="aiMake"
-                                placeholder="e.g., Toyota"
+                                @change="loadAIModels()"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="loading || aiDetecting"
-                            />
+                                :disabled="!aiYear || loading || aiDetecting"
+                            >
+                                <option value="">Select Make</option>
+                                <template x-for="make in aiMakes" :key="make">
+                                    <option :value="make" x-text="make"></option>
+                                </template>
+                            </select>
                         </div>
 
-                        <!-- Model (Manual Input) -->
+                        <!-- Model (Dropdown) -->
                         <div>
                             <label for="aiModel" class="block text-sm font-medium text-gray-700 mb-2">
                                 Model <span class="text-red-500">*</span>
                             </label>
-                            <input 
-                                type="text" 
+                            <select 
                                 id="aiModel" 
                                 x-model="aiModel"
-                                placeholder="e.g., Camry"
+                                @change="loadAITrims()"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="loading || aiDetecting"
-                            />
+                                :disabled="!aiMake || loading || aiDetecting"
+                            >
+                                <option value="">Select Model</option>
+                                <template x-for="model in aiModels" :key="model">
+                                    <option :value="model" x-text="model"></option>
+                                </template>
+                            </select>
                         </div>
 
-                        <!-- Trim (Manual Input - Optional) -->
+                        <!-- Trim (Dropdown - Optional) -->
                         <div>
                             <label for="aiTrim" class="block text-sm font-medium text-gray-700 mb-2">
                                 Trim (Optional)
                             </label>
-                            <input 
-                                type="text" 
+                            <select 
                                 id="aiTrim" 
                                 x-model="aiTrim"
-                                placeholder="e.g., LE, XSE"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="loading || aiDetecting"
-                            />
+                                :disabled="!aiModel || loading || aiDetecting"
+                            >
+                                <option value="">Any Trim</option>
+                                <template x-for="trim in aiTrims" :key="trim">
+                                    <option :value="trim" x-text="trim"></option>
+                                </template>
+                            </select>
                         </div>
                     </div>
 

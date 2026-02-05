@@ -32,6 +32,9 @@ function tireFitmentApp() {
         aiMake: '',
         aiModel: '',
         aiTrim: '',
+        aiMakes: [],
+        aiModels: [],
+        aiTrims: [],
         
         // Results
         results: {
@@ -45,7 +48,7 @@ function tireFitmentApp() {
         
         // Initialize
         async init() {
-            if (this.searchMode === 'ymm') {
+            if (this.searchMode === 'ymm' || this.searchMode === 'ai') {
                 await this.loadYears();
             }
         },
@@ -170,6 +173,100 @@ function tireFitmentApp() {
                 }
             } catch (error) {
                 console.error('Error loading trims:', error);
+                this.errorMessage = 'Failed to load trims. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // Load makes for AI search (same as YMM but for AI fields)
+        async loadAIMakes() {
+            if (!this.aiYear) {
+                this.aiMakes = [];
+                this.aiMake = '';
+                this.aiModels = [];
+                this.aiModel = '';
+                this.aiTrims = [];
+                this.aiTrim = '';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                const response = await fetch(
+                    this.getApiUrl(`ymm.php?action=make&year=${encodeURIComponent(this.aiYear)}`)
+                );
+                const data = await response.json();
+                if (data.success) {
+                    this.aiMakes = data.data;
+                    this.aiMake = '';
+                    this.aiModels = [];
+                    this.aiModel = '';
+                    this.aiTrims = [];
+                    this.aiTrim = '';
+                }
+            } catch (error) {
+                console.error('Error loading makes for AI search:', error);
+                this.errorMessage = 'Failed to load makes. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // Load models for AI search
+        async loadAIModels() {
+            if (!this.aiMake) {
+                this.aiModels = [];
+                this.aiModel = '';
+                this.aiTrims = [];
+                this.aiTrim = '';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                const response = await fetch(
+                    this.getApiUrl(
+                        `ymm.php?action=model&year=${encodeURIComponent(this.aiYear)}&make=${encodeURIComponent(this.aiMake)}`
+                    )
+                );
+                const data = await response.json();
+                if (data.success) {
+                    this.aiModels = data.data;
+                    this.aiModel = '';
+                    this.aiTrims = [];
+                    this.aiTrim = '';
+                }
+            } catch (error) {
+                console.error('Error loading models for AI search:', error);
+                this.errorMessage = 'Failed to load models. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        // Load trims for AI search
+        async loadAITrims() {
+            if (!this.aiModel) {
+                this.aiTrims = [];
+                this.aiTrim = '';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                const response = await fetch(
+                    this.getApiUrl(
+                        `ymm.php?action=trim&year=${encodeURIComponent(this.aiYear)}&make=${encodeURIComponent(this.aiMake)}&model=${encodeURIComponent(this.aiModel)}`
+                    )
+                );
+                const data = await response.json();
+                if (data.success) {
+                    this.aiTrims = data.data;
+                    this.aiTrim = '';
+                }
+            } catch (error) {
+                console.error('Error loading trims for AI search:', error);
                 this.errorMessage = 'Failed to load trims. Please try again.';
             } finally {
                 this.loading = false;
@@ -405,6 +502,14 @@ function tireFitmentApp() {
         
         // Reset form
         resetForm() {
+            // Reset AI search fields
+            this.aiYear = '';
+            this.aiMake = '';
+            this.aiModel = '';
+            this.aiTrim = '';
+            this.aiMakes = [];
+            this.aiModels = [];
+            this.aiTrims = [];
             this.vinInput = '';
             this.selectedYear = '';
             this.selectedMake = '';
@@ -416,7 +521,7 @@ function tireFitmentApp() {
             this.errorMessage = '';
             this.showAddVehicleForm = false;
             this.vehicleToAdd = null;
-            if (this.searchMode === 'ymm') {
+            if (this.searchMode === 'ymm' || this.searchMode === 'ai') {
                 this.loadYears();
             }
         },
