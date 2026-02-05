@@ -6,7 +6,7 @@
 function tireFitmentApp() {
     return {
         // State
-        searchMode: 'vin', // 'vin' or 'ai'
+        searchMode: 'vin', // 'vin', 'ai', or 'ai-natural'
         loading: false,
         showResults: false,
         errorMessage: '',
@@ -16,6 +16,16 @@ function tireFitmentApp() {
         
         // VIN search
         vinInput: '',
+        
+        // AI Direct Search (with dropdowns)
+        years: [],
+        aiYear: '',
+        aiMake: '',
+        aiModel: '',
+        aiTrim: '',
+        aiMakes: [],
+        aiModels: [],
+        aiTrims: [],
         
         // AI Natural Language Search
         naturalLanguageQuery: '',
@@ -32,7 +42,9 @@ function tireFitmentApp() {
         
         // Initialize
         async init() {
-            // No initialization needed for natural language search
+            if (this.searchMode === 'ai') {
+                await this.loadYears();
+            }
         },
         
         // API Base URL (relative to current page)
@@ -486,9 +498,20 @@ function tireFitmentApp() {
         resetForm() {
             this.vinInput = '';
             this.naturalLanguageQuery = '';
+            // Reset AI Direct Search fields
+            this.aiYear = '';
+            this.aiMake = '';
+            this.aiModel = '';
+            this.aiTrim = '';
+            this.aiMakes = [];
+            this.aiModels = [];
+            this.aiTrims = [];
             this.errorMessage = '';
             this.showAddVehicleForm = false;
             this.vehicleToAdd = null;
+            if (this.searchMode === 'ai') {
+                this.loadYears();
+            }
         },
         
         // Reset search and show form again
@@ -694,6 +717,220 @@ function tireFitmentApp() {
                 console.error('AI detection error:', error);
                 this.errorMessage = 'Failed to detect tire sizes with AI. Please enter tire sizes manually.';
             } finally {
+                this.aiDetecting = false;
+            }
+        },
+        
+        // AI Direct Search - uses dropdowns to call AI
+        async searchWithAI() {
+            if (!this.aiYear || !this.aiMake || !this.aiModel) {
+                this.errorMessage = 'Please select Year, Make, and Model.';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                this.aiDetecting = true;
+                this.errorMessage = '';
+                this.showResults = false;
+                this.showAddVehicleForm = false;
+                
+                console.log('AI Direct Search for:', {
+                    year: this.aiYear,
+                    make: this.aiMake,
+                    model: this.aiModel,
+                    trim: this.aiTrim
+                });
+                
+                // Call AI detection endpoint directly
+                const aiResponse = await fetch(this.getApiUrl('detect-tire-sizes.php'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        year: parseInt(this.aiYear),
+                        make: this.aiMake.trim(),
+                        model: this.aiModel.trim(),
+                        trim: this.aiTrim ? this.aiTrim.trim() : '',
+                        body_class: '',
+                        drive_type: ''
+                    })
+                });
+                
+                if (!aiResponse.ok) {
+                    const errorText = await aiResponse.text();
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        errorData = { success: false, message: `HTTP ${aiResponse.status}: ${errorText.substring(0, 100)}` };
+                    }
+                    console.error('AI Detection Error:', errorData);
+                    this.errorMessage = errorData.message || 'AI tire size detection failed. Please try again or enter tire sizes manually.';
+                    return;
+                }
+                
+                const aiData = await aiResponse.json();
+                console.log('AI Detection Response:', aiData);
+                
+                if (aiData.success && aiData.data && aiData.data.front_tire) {
+                    // Show results with AI-detected tire sizes
+                    this.results = {
+                        vehicle: {
+                            year: parseInt(this.aiYear),
+                            make: this.aiMake.trim(),
+                            model: this.aiModel.trim(),
+                            trim: this.aiTrim ? this.aiTrim.trim() : null
+                        },
+                        fitment: {
+                            front_tire: aiData.data.front_tire,
+                            rear_tire: aiData.data.rear_tire || aiData.data.front_tire,
+                            is_staggered: aiData.data.rear_tire && aiData.data.rear_tire !== aiData.data.front_tire,
+                            notes: 'Tire sizes detected using AI',
+                            verified: true,
+                            source: 'ai'
+                        },
+                        tires: {
+                            front: [],
+                            rear: []
+                        }
+                    };
+                    
+                    // Try to find matching tires in database
+                    try {
+                        const tiresResponse = await fetch(
+                            this.getApiUrl(
+                                `tires.php?year=${this.aiYear}&make=${encodeURIComponent(this.aiMake)}&model=${encodeURIComponent(this.aiModel)}${this.aiTrim ? '&trim=' + encodeURIComponent(this.aiTrim) : ''}`
+                            )
+                        );
+                        const tiresData = await tiresResponse.json();
+                        
+                        if (tiresData.success && tiresData.data && tiresData.data.tires) {
+                            this.results.tires = tiresData.data.tires;
+                        }
+                    } catch (tireError) {
+                        console.log('Could not find tires in database, showing AI results only');
+                    }
+                    
+                    this.showResults = true;
+                    this.errorMessage = '';
+                } else {
+                    this.errorMessage = aiData.message || 'AI could not detect tire sizes for this vehicle. Please check your vehicle information or enter tire sizes manually.';
+                }
+                
+            } catch (error) {
+                console.error('AI Direct Search Error:', error);
+                this.errorMessage = 'An error occurred during AI tire size detection. Please try again.';
+            } finally {
+                this.loading = false;
+                this.aiDetecting = false;
+            }
+        },
+        
+        // AI Direct Search - uses dropdowns to call AI
+        async searchWithAI() {
+            if (!this.aiYear || !this.aiMake || !this.aiModel) {
+                this.errorMessage = 'Please select Year, Make, and Model.';
+                return;
+            }
+            
+            try {
+                this.loading = true;
+                this.aiDetecting = true;
+                this.errorMessage = '';
+                this.showResults = false;
+                this.showAddVehicleForm = false;
+                
+                console.log('AI Direct Search for:', {
+                    year: this.aiYear,
+                    make: this.aiMake,
+                    model: this.aiModel,
+                    trim: this.aiTrim
+                });
+                
+                // Call AI detection endpoint directly
+                const aiResponse = await fetch(this.getApiUrl('detect-tire-sizes.php'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        year: parseInt(this.aiYear),
+                        make: this.aiMake.trim(),
+                        model: this.aiModel.trim(),
+                        trim: this.aiTrim ? this.aiTrim.trim() : '',
+                        body_class: '',
+                        drive_type: ''
+                    })
+                });
+                
+                if (!aiResponse.ok) {
+                    const errorText = await aiResponse.text();
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        errorData = { success: false, message: `HTTP ${aiResponse.status}: ${errorText.substring(0, 100)}` };
+                    }
+                    console.error('AI Detection Error:', errorData);
+                    this.errorMessage = errorData.message || 'AI tire size detection failed. Please try again or enter tire sizes manually.';
+                    return;
+                }
+                
+                const aiData = await aiResponse.json();
+                console.log('AI Detection Response:', aiData);
+                
+                if (aiData.success && aiData.data && aiData.data.front_tire) {
+                    // Show results with AI-detected tire sizes
+                    this.results = {
+                        vehicle: {
+                            year: parseInt(this.aiYear),
+                            make: this.aiMake.trim(),
+                            model: this.aiModel.trim(),
+                            trim: this.aiTrim ? this.aiTrim.trim() : null
+                        },
+                        fitment: {
+                            front_tire: aiData.data.front_tire,
+                            rear_tire: aiData.data.rear_tire || aiData.data.front_tire,
+                            is_staggered: aiData.data.rear_tire && aiData.data.rear_tire !== aiData.data.front_tire,
+                            notes: 'Tire sizes detected using AI',
+                            verified: true,
+                            source: 'ai'
+                        },
+                        tires: {
+                            front: [],
+                            rear: []
+                        }
+                    };
+                    
+                    // Try to find matching tires in database
+                    try {
+                        const tiresResponse = await fetch(
+                            this.getApiUrl(
+                                `tires.php?year=${this.aiYear}&make=${encodeURIComponent(this.aiMake)}&model=${encodeURIComponent(this.aiModel)}${this.aiTrim ? '&trim=' + encodeURIComponent(this.aiTrim) : ''}`
+                            )
+                        );
+                        const tiresData = await tiresResponse.json();
+                        
+                        if (tiresData.success && tiresData.data && tiresData.data.tires) {
+                            this.results.tires = tiresData.data.tires;
+                        }
+                    } catch (tireError) {
+                        console.log('Could not find tires in database, showing AI results only');
+                    }
+                    
+                    this.showResults = true;
+                    this.errorMessage = '';
+                } else {
+                    this.errorMessage = aiData.message || 'AI could not detect tire sizes for this vehicle. Please check your vehicle information or enter tire sizes manually.';
+                }
+                
+            } catch (error) {
+                console.error('AI Direct Search Error:', error);
+                this.errorMessage = 'An error occurred during AI tire size detection. Please try again.';
+            } finally {
+                this.loading = false;
                 this.aiDetecting = false;
             }
         },
