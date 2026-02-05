@@ -72,7 +72,7 @@ try {
         !empty($driveType) ? $driveType : null
     );
     
-    if ($aiTireSizes && isset($aiTireSizes['front_tire']) && !empty($aiTireSizes['front_tire'])) {
+    if ($aiTireSizes && isset($aiTireSizes['front_tire']) && !empty($aiTireSizes['front_tire']) && $aiTireSizes['front_tire'] !== 'TBD') {
         $responseData = [
             'front_tire' => $aiTireSizes['front_tire'],
             'rear_tire' => $aiTireSizes['rear_tire'] ?? null,
@@ -84,7 +84,22 @@ try {
         
         ResponseHelper::success($responseData);
     } else {
-        ResponseHelper::error('AI could not detect tire sizes for this vehicle. Please enter tire sizes manually.', 404);
+        // Log why AI detection failed for debugging
+        $reason = 'Unknown reason';
+        if (!$aiTireSizes) {
+            $reason = 'AI service returned null';
+        } elseif (!isset($aiTireSizes['front_tire']) || empty($aiTireSizes['front_tire'])) {
+            $reason = 'No front_tire in AI response';
+        } elseif ($aiTireSizes['front_tire'] === 'TBD') {
+            $reason = 'AI returned TBD placeholder';
+        }
+        error_log("✗ AI tire size detection failed for {$year} {$make} {$model}: {$reason}");
+        
+        ResponseHelper::error(
+            "AI could not detect tire sizes for {$year} {$make} {$model}. " .
+            "This may happen for rare or obscure vehicles. Please check your vehicle's door placard or owner's manual for tire size information, or enter tire sizes manually.",
+            404
+        );
     }
     
 } catch (Exception $e) {
