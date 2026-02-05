@@ -6,7 +6,7 @@
 function tireFitmentApp() {
     return {
         // State
-        searchMode: 'vin', // 'vin', 'ymm', or 'ai'
+        searchMode: 'vin', // 'vin' or 'ai'
         loading: false,
         showResults: false,
         errorMessage: '',
@@ -17,24 +17,8 @@ function tireFitmentApp() {
         // VIN search
         vinInput: '',
         
-        // YMM search
-        years: [],
-        makes: [],
-        models: [],
-        trims: [],
-        selectedYear: '',
-        selectedMake: '',
-        selectedModel: '',
-        selectedTrim: '',
-        
-        // AI Direct Search
-        aiYear: '',
-        aiMake: '',
-        aiModel: '',
-        aiTrim: '',
-        aiMakes: [],
-        aiModels: [],
-        aiTrims: [],
+        // AI Natural Language Search
+        naturalLanguageQuery: '',
         
         // Results
         results: {
@@ -48,9 +32,7 @@ function tireFitmentApp() {
         
         // Initialize
         async init() {
-            if (this.searchMode === 'ymm' || this.searchMode === 'ai') {
-                await this.loadYears();
-            }
+            // No initialization needed for natural language search
         },
         
         // API Base URL (relative to current page)
@@ -502,28 +484,11 @@ function tireFitmentApp() {
         
         // Reset form
         resetForm() {
-            // Reset AI search fields
-            this.aiYear = '';
-            this.aiMake = '';
-            this.aiModel = '';
-            this.aiTrim = '';
-            this.aiMakes = [];
-            this.aiModels = [];
-            this.aiTrims = [];
             this.vinInput = '';
-            this.selectedYear = '';
-            this.selectedMake = '';
-            this.selectedModel = '';
-            this.selectedTrim = '';
-            this.makes = [];
-            this.models = [];
-            this.trims = [];
+            this.naturalLanguageQuery = '';
             this.errorMessage = '';
             this.showAddVehicleForm = false;
             this.vehicleToAdd = null;
-            if (this.searchMode === 'ymm' || this.searchMode === 'ai') {
-                this.loadYears();
-            }
         },
         
         // Reset search and show form again
@@ -733,10 +698,10 @@ function tireFitmentApp() {
             }
         },
         
-        // AI Direct Search - directly calls AI without database lookup
-        async searchWithAI() {
-            if (!this.aiYear || !this.aiMake || !this.aiModel) {
-                this.errorMessage = 'Please enter Year, Make, and Model.';
+        // AI Natural Language Search - processes natural language queries
+        async searchWithNaturalLanguage() {
+            if (!this.naturalLanguageQuery || this.naturalLanguageQuery.trim().length < 10) {
+                this.errorMessage = 'Please enter a detailed question about tire sizes (at least 10 characters).';
                 return;
             }
             
@@ -747,26 +712,16 @@ function tireFitmentApp() {
                 this.showResults = false;
                 this.showAddVehicleForm = false;
                 
-                console.log('AI Direct Search for:', {
-                    year: this.aiYear,
-                    make: this.aiMake,
-                    model: this.aiModel,
-                    trim: this.aiTrim
-                });
+                console.log('AI Natural Language Query:', this.naturalLanguageQuery);
                 
-                // Call AI detection endpoint directly
-                const aiResponse = await fetch(this.getApiUrl('detect-tire-sizes.php'), {
+                // Call AI natural language endpoint
+                const aiResponse = await fetch(this.getApiUrl('ai-natural-language.php'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        year: parseInt(this.aiYear),
-                        make: this.aiMake.trim(),
-                        model: this.aiModel.trim(),
-                        trim: this.aiTrim ? this.aiTrim.trim() : '',
-                        body_class: '',
-                        drive_type: ''
+                        query: this.naturalLanguageQuery.trim()
                     })
                 });
                 
@@ -778,30 +733,31 @@ function tireFitmentApp() {
                     } catch (e) {
                         errorData = { success: false, message: `HTTP ${aiResponse.status}: ${errorText.substring(0, 100)}` };
                     }
-                    console.error('AI Detection Error:', errorData);
-                    this.errorMessage = errorData.message || 'AI tire size detection failed. Please try again or enter tire sizes manually.';
+                    console.error('AI Natural Language Error:', errorData);
+                    this.errorMessage = errorData.message || 'AI could not process your query. Please try rephrasing your question.';
                     return;
                 }
                 
                 const aiData = await aiResponse.json();
-                console.log('AI Detection Response:', aiData);
+                console.log('AI Natural Language Response:', aiData);
                 
                 if (aiData.success && aiData.data && aiData.data.front_tire) {
                     // Show results with AI-detected tire sizes
                     this.results = {
                         vehicle: {
-                            year: parseInt(this.aiYear),
-                            make: this.aiMake.trim(),
-                            model: this.aiModel.trim(),
-                            trim: this.aiTrim ? this.aiTrim.trim() : null
+                            year: aiData.data.year || null,
+                            make: aiData.data.make || null,
+                            model: aiData.data.model || null,
+                            trim: aiData.data.trim || null
                         },
                         fitment: {
                             front_tire: aiData.data.front_tire,
                             rear_tire: aiData.data.rear_tire || aiData.data.front_tire,
-                            is_staggered: aiData.data.rear_tire && aiData.data.rear_tire !== aiData.data.front_tire,
-                            notes: 'Tire sizes detected using AI',
+                            is_staggered: aiData.data.is_staggered || false,
+                            notes: aiData.data.explanation || 'Tire sizes detected using AI natural language processing',
                             verified: true,
-                            source: 'ai'
+                            source: 'ai_natural_language',
+                            wheel_size: aiData.data.wheel_size || null
                         },
                         tires: {
                             front: [],
@@ -809,31 +765,33 @@ function tireFitmentApp() {
                         }
                     };
                     
-                    // Try to find matching tires in database
-                    try {
-                        const tiresResponse = await fetch(
-                            this.getApiUrl(
-                                `tires.php?year=${this.aiYear}&make=${encodeURIComponent(this.aiMake)}&model=${encodeURIComponent(this.aiModel)}${this.aiTrim ? '&trim=' + encodeURIComponent(this.aiTrim) : ''}`
-                            )
-                        );
-                        const tiresData = await tiresResponse.json();
-                        
-                        if (tiresData.success && tiresData.data && tiresData.data.tires) {
-                            this.results.tires = tiresData.data.tires;
+                    // Try to find matching tires in database if we have vehicle info
+                    if (aiData.data.year && aiData.data.make && aiData.data.model) {
+                        try {
+                            const tiresResponse = await fetch(
+                                this.getApiUrl(
+                                    `tires.php?year=${aiData.data.year}&make=${encodeURIComponent(aiData.data.make)}&model=${encodeURIComponent(aiData.data.model)}${aiData.data.trim ? '&trim=' + encodeURIComponent(aiData.data.trim) : ''}`
+                                )
+                            );
+                            const tiresData = await tiresResponse.json();
+                            
+                            if (tiresData.success && tiresData.data && tiresData.data.tires) {
+                                this.results.tires = tiresData.data.tires;
+                            }
+                        } catch (tireError) {
+                            console.log('Could not find tires in database, showing AI results only');
                         }
-                    } catch (tireError) {
-                        console.log('Could not find tires in database, showing AI results only');
                     }
                     
                     this.showResults = true;
                     this.errorMessage = '';
                 } else {
-                    this.errorMessage = aiData.message || 'AI could not detect tire sizes for this vehicle. Please check your vehicle information or enter tire sizes manually.';
+                    this.errorMessage = aiData.message || 'AI could not determine tire sizes from your query. Please try rephrasing or be more specific about the vehicle year, make, and model.';
                 }
                 
             } catch (error) {
-                console.error('AI Direct Search Error:', error);
-                this.errorMessage = 'An error occurred during AI tire size detection. Please try again.';
+                console.error('AI Natural Language Search Error:', error);
+                this.errorMessage = 'An error occurred while processing your query. Please try again.';
             } finally {
                 this.loading = false;
                 this.aiDetecting = false;

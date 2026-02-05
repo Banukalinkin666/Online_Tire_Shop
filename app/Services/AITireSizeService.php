@@ -418,6 +418,210 @@ Rules:
     }
     
     /**
+     * Get tire sizes from natural language query
+     * Example: "What tire sizes fit my 2018 honda civic with 16 wheels"
+     * 
+     * @param string $query Natural language query
+     * @return array Result with success, tire sizes, and vehicle info
+     */
+    public function getTireSizesFromNaturalLanguage(string $query): array
+    {
+        if (!$this->geminiKey) {
+            return [
+                'success' => false,
+                'message' => 'AI service is not available. Please configure GEMINI_API_KEY.'
+            ];
+        }
+        
+        try {
+            return $this->getTireSizesFromGeminiNaturalLanguage($query);
+        } catch (Exception $e) {
+            error_log("Gemini natural language API error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to process your query: ' . $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * Get tire sizes using Google Gemini with natural language query
+     */
+    private function getTireSizesFromGeminiNaturalLanguage(string $query): array
+    {
+        $prompt = "The user asked: \"$query\"
+
+Extract the vehicle information and tire sizes from this query. The user wants to know what tire sizes fit their vehicle.
+
+CRITICAL: You MUST return a COMPLETE, valid JSON object. Do NOT truncate or leave it incomplete.
+
+Return ONLY this JSON format (complete the entire object):
+{
+  \"year\": 2018,
+  \"make\": \"Honda\",
+  \"model\": \"Civic\",
+  \"trim\": null,
+  \"wheel_size\": \"16\",
+  \"front_tire\": \"205/55R16\",
+  \"rear_tire\": null,
+  \"explanation\": \"Based on your query, the recommended tire size for a 2018 Honda Civic with 16-inch wheels is 205/55R16.\"
+}
+
+Rules:
+1. Extract year, make, model, and trim (if mentioned) from the query
+2. Extract wheel size if mentioned (e.g., \"16 wheels\" = \"16\")
+3. Determine the appropriate tire size based on the vehicle and wheel size
+4. Use format: WIDTH/ASPECTRATIO RIM (e.g., 225/65R17, 245/40R18)
+5. If same size front/rear: set rear_tire to null
+6. If different sizes: provide both values
+7. Provide a helpful explanation in the explanation field
+8. MUST be complete valid JSON - close all quotes and braces
+9. NO markdown code blocks, NO extra text, ONLY the JSON object";
+        
+        // Get available models
+        $availableModels = $this->listAvailableModels();
+        $modelsToTry = !empty($availableModels) ? $availableModels : self::GEMINI_MODELS;
+        
+        // Try different models until one works
+        $lastError = null;
+        $httpCode = 0;
+        $response = null;
+        
+        foreach ($modelsToTry as $model) {
+            $url = self::GEMINI_API_BASE . '/v1/models/' . $model . ':generateContent?key=' . urlencode($this->geminiKey);
+            error_log("Trying Gemini model: $model for natural language query");
+            
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'contents' => [
+                        [
+                            'parts' => [
+                                [
+                                    'text' => $prompt
+                                ]
+                            ]
+                        ]
+                    ],
+                    'generationConfig' => [
+                        'temperature' => 0.1,
+                        'maxOutputTokens' => 800,
+                        'topP' => 0.8,
+                        'topK' => 40
+                    ]
+                ]),
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 5
+            ]);
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+            
+            if ($error) {
+                $lastError = "cURL error: $error";
+                continue;
+            }
+            
+            if ($httpCode !== 200) {
+                $lastError = "HTTP $httpCode: " . substr($response ?? '', 0, 200);
+                continue;
+            }
+            
+            // Parse response
+            $data = json_decode($response, true);
+            if (!$data || !isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+                $lastError = "Invalid API response structure";
+                continue;
+            }
+            
+            $content = $data['candidates'][0]['content']['parts'][0]['text'];
+            error_log("Gemini natural language response: " . substr($content, 0, 500));
+            
+            // Extract JSON from response
+            $jsonData = $this->extractJsonFromResponse($content);
+            
+            if ($jsonData && isset($jsonData['front_tire']) && !empty($jsonData['front_tire'])) {
+                return [
+                    'success' => true,
+                    'year' => $jsonData['year'] ?? null,
+                    'make' => $jsonData['make'] ?? null,
+                    'model' => $jsonData['model'] ?? null,
+                    'trim' => $jsonData['trim'] ?? null,
+                    'wheel_size' => $jsonData['wheel_size'] ?? null,
+                    'front_tire' => $jsonData['front_tire'],
+                    'rear_tire' => $jsonData['rear_tire'] ?? null,
+                    'explanation' => $jsonData['explanation'] ?? 'Tire sizes determined using AI.',
+                    'is_staggered' => !empty($jsonData['rear_tire']) && $jsonData['front_tire'] !== $jsonData['rear_tire'],
+                    'source' => 'ai_natural_language'
+                ];
+            }
+            
+            $lastError = "Failed to extract valid tire sizes from response";
+        }
+        
+        return [
+            'success' => false,
+            'message' => 'Could not determine tire sizes from your query. Please try rephrasing or be more specific about the vehicle year, make, and model.'
+        ];
+    }
+    
+    /**
+     * Extract JSON from AI response (handles markdown code blocks, etc.)
+     */
+    private function extractJsonFromResponse(string $content): ?array
+    {
+        // Try parsing the full content first
+        $json = json_decode($content, true);
+        if ($json !== null) {
+            return $json;
+        }
+        
+        // Try extracting from markdown code blocks
+        if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
+            $json = json_decode($matches[1], true);
+            if ($json !== null) {
+                return $json;
+            }
+        }
+        
+        // Try finding JSON object with brace matching
+        $startPos = strpos($content, '{');
+        if ($startPos !== false) {
+            $braceCount = 0;
+            $endPos = $startPos;
+            for ($i = $startPos; $i < strlen($content); $i++) {
+                if ($content[$i] === '{') {
+                    $braceCount++;
+                } elseif ($content[$i] === '}') {
+                    $braceCount--;
+                    if ($braceCount === 0) {
+                        $endPos = $i + 1;
+                        break;
+                    }
+                }
+            }
+            
+            if ($braceCount === 0) {
+                $jsonStr = substr($content, $startPos, $endPos - $startPos);
+                $json = json_decode($jsonStr, true);
+                if ($json !== null) {
+                    return $json;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
      * Check if AI service is available
      */
     public function isAvailable(): bool

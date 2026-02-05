@@ -76,18 +76,11 @@ require_once __DIR__ . '/../app/bootstrap.php';
                         Search by VIN
                     </button>
                     <button 
-                        @click="searchMode = 'ymm'; resetForm()" 
-                        :class="searchMode === 'ymm' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'"
-                        class="px-4 py-2 font-medium focus:outline-none"
-                    >
-                        Search by Year/Make/Model
-                    </button>
-                    <button 
                         @click="searchMode = 'ai'; resetForm()" 
                         :class="searchMode === 'ai' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
                         class="px-4 py-2 font-medium focus:outline-none"
                     >
-                        🤖 AI Direct Search
+                        🤖 AI Natural Language Search
                     </button>
                 </div>
 
@@ -122,186 +115,46 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     </button>
                 </div>
 
-                <!-- YMM Search Form -->
-                <div x-show="searchMode === 'ymm'" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Year -->
-                        <div>
-                            <label for="year" class="block text-sm font-medium text-gray-700 mb-2">Year</label>
-                            <select 
-                                id="year" 
-                                x-model="selectedYear"
-                                @change="loadMakes()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                :disabled="loading"
-                            >
-                                <option value="">Select Year</option>
-                                <template x-for="year in years" :key="year">
-                                    <option :value="year" x-text="year"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Make -->
-                        <div>
-                            <label for="make" class="block text-sm font-medium text-gray-700 mb-2">Make</label>
-                            <select 
-                                id="make" 
-                                x-model="selectedMake"
-                                @change="loadModels()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                :disabled="!selectedYear || loading"
-                            >
-                                <option value="">Select Make</option>
-                                <template x-for="make in makes" :key="make">
-                                    <option :value="make" x-text="make"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Model -->
-                        <div>
-                            <label for="model" class="block text-sm font-medium text-gray-700 mb-2">Model</label>
-                            <select 
-                                id="model" 
-                                x-model="selectedModel"
-                                @change="loadTrims()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                :disabled="!selectedMake || loading"
-                            >
-                                <option value="">Select Model</option>
-                                <template x-for="model in models" :key="model">
-                                    <option :value="model" x-text="model"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Trim -->
-                        <div>
-                            <label for="trim" class="block text-sm font-medium text-gray-700 mb-2">Trim (Optional)</label>
-                            <select 
-                                id="trim" 
-                                x-model="selectedTrim"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                :disabled="!selectedModel || loading"
-                            >
-                                <option value="">Any Trim</option>
-                                <template x-for="trim in trims" :key="trim">
-                                    <option :value="trim" x-text="trim"></option>
-                                </template>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button 
-                        @click="searchByYMM()"
-                        :disabled="!selectedYear || !selectedMake || !selectedModel || loading"
-                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <span x-show="!loading">Find Tires</span>
-                        <span x-show="loading">Searching...</span>
-                    </button>
-                </div>
-
-                <!-- AI Direct Search Form -->
+                <!-- AI Natural Language Search Form -->
                 <div x-show="searchMode === 'ai'" class="space-y-4">
                     <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-4 rounded">
                         <p class="text-sm text-purple-800">
-                            <strong>🤖 AI Direct Search:</strong> Select your vehicle details from the database and get instant tire size detection using AI.
+                            <strong>🤖 AI Natural Language Search:</strong> Ask about tire sizes in plain English! 
+                            Example: "What tire sizes fit my 2018 honda civic with 16 wheels"
                         </p>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Year (Dropdown) -->
-                        <div>
-                            <label for="aiYear" class="block text-sm font-medium text-gray-700 mb-2">
-                                Year <span class="text-red-500">*</span>
-                            </label>
-                            <select 
-                                id="aiYear" 
-                                x-model="aiYear"
-                                @change="loadAIMakes()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="loading || aiDetecting"
-                            >
-                                <option value="">Select Year</option>
-                                <template x-for="year in years" :key="year">
-                                    <option :value="year" x-text="year"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Make (Dropdown) -->
-                        <div>
-                            <label for="aiMake" class="block text-sm font-medium text-gray-700 mb-2">
-                                Make <span class="text-red-500">*</span>
-                            </label>
-                            <select 
-                                id="aiMake" 
-                                x-model="aiMake"
-                                @change="loadAIModels()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="!aiYear || loading || aiDetecting"
-                            >
-                                <option value="">Select Make</option>
-                                <template x-for="make in aiMakes" :key="make">
-                                    <option :value="make" x-text="make"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Model (Dropdown) -->
-                        <div>
-                            <label for="aiModel" class="block text-sm font-medium text-gray-700 mb-2">
-                                Model <span class="text-red-500">*</span>
-                            </label>
-                            <select 
-                                id="aiModel" 
-                                x-model="aiModel"
-                                @change="loadAITrims()"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="!aiMake || loading || aiDetecting"
-                            >
-                                <option value="">Select Model</option>
-                                <template x-for="model in aiModels" :key="model">
-                                    <option :value="model" x-text="model"></option>
-                                </template>
-                            </select>
-                        </div>
-
-                        <!-- Trim (Dropdown - Optional) -->
-                        <div>
-                            <label for="aiTrim" class="block text-sm font-medium text-gray-700 mb-2">
-                                Trim (Optional)
-                            </label>
-                            <select 
-                                id="aiTrim" 
-                                x-model="aiTrim"
-                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                                :disabled="!aiModel || loading || aiDetecting"
-                            >
-                                <option value="">Any Trim</option>
-                                <template x-for="trim in aiTrims" :key="trim">
-                                    <option :value="trim" x-text="trim"></option>
-                                </template>
-                            </select>
-                        </div>
+                    <div>
+                        <label for="naturalLanguageQuery" class="block text-sm font-medium text-gray-700 mb-2">
+                            Ask about tire sizes <span class="text-red-500">*</span>
+                        </label>
+                        <textarea 
+                            id="naturalLanguageQuery" 
+                            x-model="naturalLanguageQuery"
+                            rows="3"
+                            placeholder="e.g., What tire sizes fit my 2018 honda civic with 16 wheels"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                            :disabled="loading || aiDetecting"
+                        ></textarea>
+                        <p class="mt-1 text-sm text-gray-500">
+                            💡 Tip: Include the year, make, model, and wheel size (if known) for best results
+                        </p>
                     </div>
 
                     <button 
-                        @click="searchWithAI()"
-                        :disabled="!aiYear || !aiMake || !aiModel || loading || aiDetecting"
+                        @click="searchWithNaturalLanguage()"
+                        :disabled="!naturalLanguageQuery || naturalLanguageQuery.trim().length < 10 || loading || aiDetecting"
                         class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 px-6 rounded-md hover:from-purple-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
                     >
                         <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
                         </svg>
                         <svg x-show="loading || aiDetecting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <span x-show="!loading && !aiDetecting">🤖 Find Tire Sizes with AI</span>
-                        <span x-show="loading || aiDetecting">AI is detecting tire sizes...</span>
+                        <span x-show="loading || aiDetecting">AI is processing your query...</span>
                     </button>
                 </div>
 
