@@ -182,6 +182,16 @@ if ($uri === '/populate-2018-2025.php') {
     }
 }
 
+// Route populate-2004-2017 script
+if ($uri === '/populate-2004-2017.php') {
+    $file = __DIR__ . '/public/populate-2004-2017.php';
+    if (file_exists($file)) {
+        $_SERVER['SCRIPT_NAME'] = '/populate-2004-2017.php';
+        require $file;
+        return true;
+    }
+}
+
 // Route root and other requests to /public/index.php
 if ($uri === '/' || $uri === '') {
     $_SERVER['SCRIPT_NAME'] = '/index.php';
