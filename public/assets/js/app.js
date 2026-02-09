@@ -16,6 +16,7 @@ function tireFitmentApp() {
         
         // VIN search
         vinInput: '',
+        vinSearchId: 0, // used to ignore stale responses (e.g. race when retrying)
         
         // AI Direct Search (with dropdowns)
         years: [],
@@ -44,6 +45,20 @@ function tireFitmentApp() {
         async init() {
             if (this.searchMode === 'ai') {
                 await this.loadYears();
+            }
+        },
+        
+        // Parse JSON from fetch response; handles non-JSON (e.g. 502 HTML) and network errors
+        async parseJsonResponse(response) {
+            const text = await response.text();
+            if (!text.trim()) {
+                return { success: false, data: null, error: response.ok ? 'Empty response from server.' : `Server error (${response.status}). Please try again.` };
+            }
+            try {
+                const data = JSON.parse(text);
+                return { success: true, data };
+            } catch (e) {
+                return { success: false, data: null, error: response.ok ? 'Invalid response from server. Please try again.' : `Server error (${response.status}). Please try again.` };
             }
         },
         
@@ -274,6 +289,7 @@ function tireFitmentApp() {
                 return;
             }
             
+            const currentSearchId = ++this.vinSearchId;
             try {
                 this.loading = true;
                 this.errorMessage = '';
@@ -287,7 +303,13 @@ function tireFitmentApp() {
                     body: JSON.stringify({ vin: this.vinInput })
                 });
                 
-                const vinData = await vinResponse.json();
+                const parsed = await this.parseJsonResponse(vinResponse);
+                if (currentSearchId !== this.vinSearchId) return;
+                if (!parsed.success) {
+                    this.errorMessage = parsed.error || 'An error occurred while processing your request. Please try again.';
+                    return;
+                }
+                const vinData = parsed.data;
                 
                 // Debug: Log the response to see what we're getting
                 console.log('VIN API Response:', vinData);
@@ -358,10 +380,11 @@ function tireFitmentApp() {
                             `tires.php?year=${vehicle.year}&make=${encodeURIComponent(vehicle.make)}&model=${encodeURIComponent(vehicle.model)}${trimToUse ? '&trim=' + encodeURIComponent(trimToUse) : ''}`
                         )
                     );
+                    const tiresParsed = await this.parseJsonResponse(tiresResponse);
+                    if (currentSearchId !== this.vinSearchId) return;
+                    const tiresData = tiresParsed.success ? tiresParsed.data : null;
                     
-                    const tiresData = await tiresResponse.json();
-                    
-                    if (tiresData.success && tiresData.data.tires) {
+                    if (tiresData && tiresData.success && tiresData.data && tiresData.data.tires) {
                         // Found tires in database - merge with AI results
                         this.results.tires = tiresData.data.tires;
                     } else {
@@ -384,8 +407,13 @@ function tireFitmentApp() {
                         `tires.php?year=${vehicle.year}&make=${encodeURIComponent(vehicle.make)}&model=${encodeURIComponent(vehicle.model)}${trimToUse ? '&trim=' + encodeURIComponent(trimToUse) : ''}`
                     )
                 );
-                
-                const tiresData = await tiresResponse.json();
+                const tiresParsed = await this.parseJsonResponse(tiresResponse);
+                if (currentSearchId !== this.vinSearchId) return;
+                if (!tiresParsed.success) {
+                    this.errorMessage = tiresParsed.error || 'An error occurred while processing your request. Please try again.';
+                    return;
+                }
+                const tiresData = tiresParsed.data;
                 
                 if (!tiresData.success) {
                     // Check if vehicle not found in database
@@ -433,9 +461,13 @@ function tireFitmentApp() {
                 
             } catch (error) {
                 console.error('Error searching by VIN:', error);
-                this.errorMessage = 'An error occurred while processing your request. Please try again.';
+                if (currentSearchId === this.vinSearchId) {
+                    this.errorMessage = 'An error occurred while processing your request. Please try again.';
+                }
             } finally {
-                this.loading = false;
+                if (currentSearchId === this.vinSearchId) {
+                    this.loading = false;
+                }
             }
         },
         
