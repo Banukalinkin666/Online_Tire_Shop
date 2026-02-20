@@ -15,7 +15,7 @@ if (!defined('TIRESHOP_BOOTSTRAP_LOADED')) {
 // Render automatically injects env vars, but ensure they're accessible
 if (function_exists('getenv')) {
     // Sync getenv() values to $_ENV and $_SERVER for consistency
-    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE'];
+    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE', 'DATABASE_URL'];
     foreach ($envVars as $var) {
         $value = getenv($var);
         if ($value !== false) {

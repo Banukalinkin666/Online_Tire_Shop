@@ -59,7 +59,54 @@ class Connection
      */
     public static function getInstance(): PDO
     {
-        return self::connect(null);
+        $pdo = self::connect(null);
+        // For PostgreSQL, verify connection is alive (handles server-side idle close)
+        if (self::$instance !== null && self::isPgsql()) {
+            try {
+                self::$instance->query('SELECT 1');
+            } catch (\Throwable $e) {
+                self::reset();
+                $pdo = self::connect(null);
+            }
+        }
+        return $pdo;
+    }
+
+    private static function isPgsql(): bool
+    {
+        if (self::parseDatabaseUrl() !== null) {
+            return true;
+        }
+        $config = self::loadConfig();
+        $dbType = $_ENV['DB_TYPE'] ?? $_SERVER['DB_TYPE'] ?? $config['type'] ?? 'mysql';
+        return $dbType === 'pgsql' || $dbType === 'postgresql';
+    }
+
+    /**
+     * Parse Render-style DATABASE_URL (postgresql://user:pass@host:port/dbname?sslmode=require)
+     * Returns ['dsn' => string, 'username' => string, 'password' => string] or null if not set/invalid
+     */
+    private static function parseDatabaseUrl(): ?array
+    {
+        $url = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? '';
+        if ($url === '' || !preg_match('#^postgres(?:ql)?://#i', $url)) {
+            return null;
+        }
+        $parsed = parse_url($url);
+        if (!isset($parsed['host'], $parsed['user'], $parsed['path'])) {
+            return null;
+        }
+        $host = $parsed['host'];
+        $port = $parsed['port'] ?? 5432;
+        $dbname = ltrim($parsed['path'], '/');
+        $username = isset($parsed['user']) ? rawurldecode($parsed['user']) : '';
+        $password = isset($parsed['pass']) ? rawurldecode($parsed['pass']) : '';
+        $query = isset($parsed['query']) ? $parsed['query'] : '';
+        parse_str($query, $params);
+        // prefer: try SSL, don't fail if server closes; require: strict SSL (use ?sslmode=require in URL if needed)
+        $sslmode = $params['sslmode'] ?? 'prefer';
+        $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode={$sslmode}";
+        return ['dsn' => $dsn, 'username' => $username, 'password' => $password];
     }
 
     /**
@@ -73,17 +120,21 @@ class Connection
 
         $config = self::loadConfig();
 
-        // Determine database type from environment or default to MySQL
-        $dbType = $_ENV['DB_TYPE'] ?? $_SERVER['DB_TYPE'] ?? $config['type'] ?? 'mysql';
+        // Prefer DATABASE_URL when set (Render: use Internal Database URL from dashboard)
+        $useDatabaseUrl = self::parseDatabaseUrl();
+        $dbType = $useDatabaseUrl !== null ? 'pgsql' : ($_ENV['DB_TYPE'] ?? $_SERVER['DB_TYPE'] ?? $config['type'] ?? 'mysql');
 
-        // Build DSN based on database type
-        if ($dbType === 'pgsql' || $dbType === 'postgresql') {
-            // PostgreSQL connection (sslmode=require for Render and other hosted Postgres)
+        // Build DSN and credentials
+        if ($useDatabaseUrl !== null) {
+            $dsn = $useDatabaseUrl['dsn'];
+            $username = $useDatabaseUrl['username'];
+            $password = $useDatabaseUrl['password'];
+        } elseif ($dbType === 'pgsql' || $dbType === 'postgresql') {
+            // PostgreSQL from config
             $port = isset($config['port']) && !empty($config['port'])
                 ? $config['port']
                 : '5432';
             $sslmode = $_ENV['DB_SSLMODE'] ?? $config['sslmode'] ?? 'require';
-
             $dsn = sprintf(
                 "pgsql:host=%s;port=%s;dbname=%s;sslmode=%s",
                 $config['host'],
@@ -91,12 +142,13 @@ class Connection
                 $config['dbname'],
                 $sslmode
             );
+            $username = $config['username'];
+            $password = $config['password'];
         } else {
             // MySQL connection (default)
             $port = isset($config['port']) && !empty($config['port'])
                 ? ';port=' . $config['port']
                 : '';
-
             $dsn = sprintf(
                 "mysql:host=%s%s;dbname=%s;charset=%s",
                 $config['host'],
@@ -104,6 +156,8 @@ class Connection
                 $config['dbname'],
                 $config['charset']
             );
+            $username = $config['username'];
+            $password = $config['password'];
         }
 
         try {
@@ -124,12 +178,7 @@ class Connection
                 }
             }
 
-            self::$instance = new PDO(
-                $dsn,
-                $config['username'],
-                $config['password'],
-                $options
-            );
+            self::$instance = new PDO($dsn, $username, $password, $options);
 
             // Set statement timeout for PostgreSQL (if using PostgreSQL)
             if ($dbType === 'pgsql' || $dbType === 'postgresql') {

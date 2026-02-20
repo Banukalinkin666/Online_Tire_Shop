@@ -1078,35 +1078,5 @@ function tireFitmentApp() {
             return (this.vehicleToAdd && this.vehicleToAdd[property]) ? this.vehicleToAdd[property] : defaultValue;
         },
         
-        // Request quote (placeholder - integrate with your quote system)
-        requestQuote(tire) {
-            alert(`Quote requested for:\n\n${tire.brand} ${tire.model}\nSize: ${tire.tire_size}\nPrice: $${parseFloat(tire.price).toFixed(2)}\n\nThis would typically open a quote form or send an email.`);
-        },
-        
-        // Add to cart (placeholder - integrate with your cart system)
-        addToCart(tire, position) {
-            // Example: Integrate with your e-commerce cart system
-            // This could be WooCommerce, Magento, custom cart, etc.
-            
-            // Example for custom cart:
-            // const cartItem = {
-            //     id: tire.id,
-            //     brand: tire.brand,
-            //     model: tire.model,
-            //     size: tire.tire_size,
-            //     position: position,
-            //     price: tire.price,
-            //     quantity: 1
-            // };
-            // 
-            // // Add to cart via API or localStorage
-            // fetch('/api/cart.php', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify(cartItem)
-            // });
-            
-            alert(`Added to cart:\n\n${tire.brand} ${tire.model}\nSize: ${tire.tire_size}\nPosition: ${position}\nPrice: $${parseFloat(tire.price).toFixed(2)}\n\nThis would typically add the item to your shopping cart.`);
-        }
     };
 }

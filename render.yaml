@@ -14,17 +14,20 @@ services:
     envVars:
       - key: PHP_VERSION
         value: 8.2
-      # Database environment variables (set these in Render dashboard)
+      # Database: for PostgreSQL on Render, set DATABASE_URL to your DB's "Internal Database URL" (Connect menu)
+      # Optional: or set DB_TYPE=pgsql and DB_HOST, DB_NAME, DB_USER, DB_PASS, DB_PORT (5432)
+      - key: DATABASE_URL
+        sync: false  # From Postgres service: Connect -> Internal Database URL
       - key: DB_HOST
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: DB_NAME
         value: tire_shop
       - key: DB_USER
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: DB_PASS
-        sync: false  # Set manually in Render dashboard
+        sync: false
       - key: DB_PORT
-        value: "3306"  # Change to 5432 for PostgreSQL
+        value: "5432"
 
   # PostgreSQL Database (Optional - use if you want Render-managed database)
   # Note: Requires SQL schema modifications for PostgreSQL compatibility

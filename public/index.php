@@ -487,23 +487,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                     <p x-show="tire.speed_rating"><span class="font-medium">Speed Rating:</span> <span x-text="tire.speed_rating"></span></p>
                                     <p><span class="font-medium">Stock:</span> <span x-text="tire.stock" :class="tire.stock > 10 ? 'text-green-600' : tire.stock > 0 ? 'text-yellow-600' : 'text-red-600'"></span></p>
                                 </div>
-                                <div class="mt-4 flex justify-between items-center">
+                                <div class="mt-4">
                                     <span class="text-2xl font-bold text-blue-600">$<span x-text="parseFloat(tire.price).toFixed(2)"></span></span>
-                                    <div class="space-x-2">
-                                        <button 
-                                            @click="requestQuote(tire)"
-                                            class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                                        >
-                                            Quote
-                                        </button>
-                                        <button 
-                                            @click="addToCart(tire, 'front')"
-                                            :disabled="tire.stock === 0"
-                                            class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            Add to Cart
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -526,23 +511,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                     <p x-show="tire.speed_rating"><span class="font-medium">Speed Rating:</span> <span x-text="tire.speed_rating"></span></p>
                                     <p><span class="font-medium">Stock:</span> <span x-text="tire.stock" :class="tire.stock > 10 ? 'text-green-600' : tire.stock > 0 ? 'text-yellow-600' : 'text-red-600'"></span></p>
                                 </div>
-                                <div class="mt-4 flex justify-between items-center">
+                                <div class="mt-4">
                                     <span class="text-2xl font-bold text-blue-600">$<span x-text="parseFloat(tire.price).toFixed(2)"></span></span>
-                                    <div class="space-x-2">
-                                        <button 
-                                            @click="requestQuote(tire)"
-                                            class="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                                        >
-                                            Quote
-                                        </button>
-                                        <button 
-                                            @click="addToCart(tire, 'rear')"
-                                            :disabled="tire.stock === 0"
-                                            class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            Add to Cart
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
                         </template>
