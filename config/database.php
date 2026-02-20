@@ -15,6 +15,7 @@ return [
     'password' => $_ENV['DB_PASS'] ?? $_SERVER['DB_PASS'] ?? '',
     'port' => $_ENV['DB_PORT'] ?? $_SERVER['DB_PORT'] ?? '3306',
     'charset' => 'utf8mb4', // Only used for MySQL
+    'sslmode' => $_ENV['DB_SSLMODE'] ?? $_SERVER['DB_SSLMODE'] ?? 'require', // For PostgreSQL (e.g. Render): require, prefer, disable
     'options' => [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
