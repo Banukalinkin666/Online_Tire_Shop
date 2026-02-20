@@ -41,11 +41,9 @@ function tireFitmentApp() {
             }
         },
         
-        // Initialize
+        // Initialize – load years so AI Direct Search dropdown is ready when user switches tab
         async init() {
-            if (this.searchMode === 'ai') {
-                await this.loadYears();
-            }
+            await this.loadYears();
         },
         
         // Parse JSON from fetch response; handles non-JSON (e.g. 502 HTML) and network errors
@@ -81,16 +79,24 @@ function tireFitmentApp() {
             return baseUrl + '/api/' + endpoint;
         },
         
-        // Load years for YMM search
+        // Load years for YMM and AI Direct Search dropdowns
         async loadYears() {
             try {
                 const response = await fetch(this.getApiUrl('ymm.php?action=year'));
-                const data = await response.json();
-                if (data.success) {
-                    this.years = data.data;
+                const parsed = await this.parseJsonResponse(response);
+                if (parsed.success && parsed.data && parsed.data.success && Array.isArray(parsed.data.data)) {
+                    this.years = parsed.data.data;
+                } else if (parsed.success && parsed.data && Array.isArray(parsed.data)) {
+                    this.years = parsed.data;
+                } else if (!parsed.success && this.years.length === 0) {
+                    this.years = [];
+                    console.warn('Could not load years:', parsed.error);
                 }
             } catch (error) {
                 console.error('Error loading years:', error);
+                if (this.years.length === 0) {
+                    this.years = [];
+                }
             }
         },
         
