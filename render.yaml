@@ -33,7 +33,8 @@ services:
     plan: free
     region: oregon
     buildCommand: ""
-    startCommand: php -S 0.0.0.0:$PORT -t public
+    # Use router so / and /api/* work (router.php is in repo root)
+    startCommand: php -S 0.0.0.0:$PORT -t public router.php
 
     envVars:
       - key: PHP_VERSION
