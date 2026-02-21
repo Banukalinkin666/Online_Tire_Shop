@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HomepageContent {
+  id            String   @id @default(cuid())
+  heroTitle     String   @default("Find Your Perfect Tire Size")
+  heroSubtitle  String   @default("Enter your vehicle details and get instant recommendations")
+  ctaText       String   @default("Get Started")
+  whyChooseUs   String   // JSON array of { title, description }
+  updatedAt     DateTime @updatedAt
+}
+
+model Brand {
+  id    String @id @default(cuid())
+  name  String
+  logo  String? // URL or path
+  order Int     @default(0)
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String?
+  content   String
+  rating    Int      @default(5)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model AboutContent {
+  id           String   @id @default(cuid())
+  intro        String
+  mission      String
+  vision       String
+  experience   String   // JSON or text
+  certifications String // JSON array or text
+  images       String   // JSON array of URLs
+  updatedAt    DateTime @updatedAt
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  icon        String   @default("wrench")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ContactContent {
+  id            String   @id @default(cuid())
+  address       String
+  phone         String
+  email         String
+  workingHours  String   // text or JSON
+  whatsapp      String?
+  mapEmbedUrl   String?  // Google map embed URL
+  updatedAt     DateTime @updatedAt
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SiteSettings {
+  id          String   @id @default(cuid())
+  logo        String?  // URL
+  footerText  String?
+  facebook    String?
+  twitter     String?
+  instagram   String?
+  linkedin    String?
+  tireFinderUrl String? // URL to embed tire size finder
+  updatedAt   DateTime @updatedAt
+}

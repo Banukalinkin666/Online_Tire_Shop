@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Tire Fitment Finder
  * Plugin URI: https://example.com/tire-fitment-finder
- * Description: Embed tire fitment finder into WordPress via shortcode
- * Version: 1.0.0
+ * Description: Embed tire fitment finder into WordPress via shortcode. Use a URL (e.g. your app on Render) or local app files.
+ * Version: 1.1.0
  * Author: Your Name
  * Author URI: https://example.com
  * License: GPL v2 or later
@@ -18,72 +18,96 @@ if (!defined('ABSPATH')) {
 
 /**
  * Register shortcode for tire fitment finder
- * 
- * Usage: [tire_fitment]
- * 
+ *
+ * Usage:
+ *   [tire_fitment]                                    – uses default URL from settings, or local app if no URL set
+ *   [tire_fitment url="https://your-app.onrender.com"] – embed from this URL (iframe)
+ *   [tire_fitment url="..." height="800"]             – optional height in pixels
+ *
  * Optional attributes:
- * - api_path: Custom path to API directory (default: plugin_dir_path/../api)
+ *   url     – Full URL to the tire finder app (e.g. https://online-tire-shop-pro.onrender.com). If set, embeds via iframe.
+ *   height  – Iframe height: number (pixels) or "full" for 100vh (default: 900)
+ *   api_path – (Local only) Custom path to API directory when not using url
  */
 function tire_fitment_shortcode($atts) {
     $atts = shortcode_atts([
+        'url'      => '',
+        'height'   => '900',
         'api_path' => '',
     ], $atts, 'tire_fitment');
-    
-    // Get plugin directory path
+
+    // Option 1: Embed by URL (iframe) – use when your tire finder is hosted elsewhere (e.g. Render)
+    $embed_url = !empty($atts['url']) ? $atts['url'] : get_option('tire_fitment_embed_url', '');
+    $embed_url = esc_url_raw(rtrim($embed_url, '/'));
+
+    if (!empty($embed_url)) {
+        $height = $atts['height'];
+        if ($height === 'full' || $height === '100vh') {
+            $style = 'height: 100vh; min-height: 700px; width: 100%; border: none; display: block;';
+        } else {
+            $h = absint($height);
+            if ($h < 400) {
+                $h = 900;
+            }
+            $style = sprintf('height: %dpx; width: 100%%; border: none; display: block;', $h);
+        }
+        return sprintf(
+            '<div class="tire-fitment-embed" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
+            esc_attr($embed_url),
+            esc_attr($style)
+        );
+    }
+
+    // Option 2: Local app – include app files from server (app must be on same server as WordPress)
     $plugin_dir = plugin_dir_path(__FILE__);
-    
-    // Determine API path
-    // If not specified, assume API is one level up from plugin
-    $api_base_path = !empty($atts['api_path']) 
-        ? $atts['api_path'] 
+    $api_base_path = !empty($atts['api_path'])
+        ? $atts['api_path']
         : dirname($plugin_dir) . '/api';
-    
-    // Determine app base path
     $app_base_path = dirname($plugin_dir);
-    
-    // Buffer output
-    ob_start();
-    
-    // Include the main application file
     $app_file = $app_base_path . '/public/index.php';
-    
+
+    ob_start();
     if (file_exists($app_file)) {
-        // Set a constant so bootstrap knows it's WordPress
         if (!defined('TIRESHOP_WORDPRESS_MODE')) {
             define('TIRESHOP_WORDPRESS_MODE', true);
             define('TIRESHOP_API_BASE_PATH', $api_base_path);
             define('TIRESHOP_APP_BASE_PATH', $app_base_path);
         }
-        
         include $app_file;
     } else {
-        echo '<div class="tire-fitment-error"><p>Error: Tire Fitment application files not found.</p></div>';
+        echo '<div class="tire-fitment-error notice notice-warning inline"><p><strong>Tire Fitment Finder:</strong> ';
+        echo 'App files not found on this server. Either add the shortcode attribute <code>url="https://your-tire-app.onrender.com"</code> ';
+        echo 'to embed your hosted app, or install the app files under the plugin directory.</p></div>';
     }
-    
     return ob_get_clean();
 }
 add_shortcode('tire_fitment', 'tire_fitment_shortcode');
 
 /**
- * Enqueue scripts and styles if shortcode is used on page
+ * Enqueue scripts and styles if shortcode is used on page (for local app mode)
  */
 function tire_fitment_enqueue_assets() {
     global $post;
-    
-    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'tire_fitment')) {
-        // Tailwind CSS is loaded via CDN in the main HTML file
-        // Alpine.js is also loaded via CDN
-        // Custom CSS and JS will be loaded inline in the shortcode output
-        
-        // Optionally, you can enqueue custom CSS/JS files here if needed
-        // wp_enqueue_style('tire-fitment-css', plugin_dir_url(__FILE__) . '../public/assets/css/main.css');
-        // wp_enqueue_script('tire-fitment-js', plugin_dir_url(__FILE__) . '../public/assets/js/app.js', [], '1.0.0', true);
+    if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'tire_fitment')) {
+        return;
     }
+    // When using iframe (url), no extra assets needed. When using local include, assets come from index.php.
 }
 add_action('wp_enqueue_scripts', 'tire_fitment_enqueue_assets');
 
 /**
- * Add admin menu for configuration (optional)
+ * Register settings for default embed URL
+ */
+function tire_fitment_register_settings() {
+    register_setting('tire_fitment_settings', 'tire_fitment_embed_url', [
+        'type'              => 'string',
+        'sanitize_callback' => 'esc_url_raw',
+    ]);
+}
+add_action('admin_init', 'tire_fitment_register_settings');
+
+/**
+ * Add admin menu
  */
 function tire_fitment_admin_menu() {
     add_options_page(
@@ -97,29 +121,44 @@ function tire_fitment_admin_menu() {
 add_action('admin_menu', 'tire_fitment_admin_menu');
 
 /**
- * Settings page callback (optional)
+ * Settings page
  */
 function tire_fitment_settings_page() {
     if (!current_user_can('manage_options')) {
         return;
     }
+    $embed_url = get_option('tire_fitment_embed_url', '');
+    if (isset($_POST['tire_fitment_embed_url']) && check_admin_referer('tire_fitment_settings')) {
+        $embed_url = esc_url_raw(wp_unslash($_POST['tire_fitment_embed_url']));
+        update_option('tire_fitment_embed_url', $embed_url);
+        echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
+    }
     ?>
     <div class="wrap">
-        <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
-        <form action="options.php" method="post">
-            <?php
-            settings_fields('tire_fitment_settings');
-            do_settings_sections('tire_fitment_settings');
-            submit_button('Save Settings');
-            ?>
+        <h1>Tire Fitment Finder</h1>
+        <form method="post" action="">
+            <?php wp_nonce_field('tire_fitment_settings'); ?>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="tire_fitment_embed_url">Default embed URL</label></th>
+                    <td>
+                        <input type="url" name="tire_fitment_embed_url" id="tire_fitment_embed_url"
+                               value="<?php echo esc_attr($embed_url); ?>"
+                               class="regular-text" placeholder="https://online-tire-shop-pro.onrender.com"/>
+                        <p class="description">If your tire finder is hosted elsewhere (e.g. Render), enter its URL here. Then <code>[tire_fitment]</code> will embed it in an iframe. Leave blank to use local app files (if installed).</p>
+                    </td>
+                </tr>
+            </table>
+            <?php submit_button('Save'); ?>
         </form>
-        <div class="card">
-            <h2>Usage</h2>
-            <p>To embed the tire fitment finder in any post or page, use the shortcode:</p>
-            <code>[tire_fitment]</code>
-            <p>Optional attributes:</p>
-            <ul>
-                <li><code>api_path</code> - Custom path to API directory (default: auto-detect)</li>
+        <div class="card" style="max-width: 640px; margin-top: 20px;">
+            <h2>Shortcode usage</h2>
+            <p>Add the shortcode to any post or page:</p>
+            <ul style="list-style: disc; margin-left: 20px;">
+                <li><code>[tire_fitment]</code> – uses the default URL above, or local app if no URL is set.</li>
+                <li><code>[tire_fitment url="https://online-tire-shop-pro.onrender.com"]</code> – embed from this URL.</li>
+                <li><code>[tire_fitment url="https://..." height="800"]</code> – set iframe height in pixels.</li>
+                <li><code>[tire_fitment url="https://..." height="full"]</code> – full viewport height.</li>
             </ul>
         </div>
     </div>
