@@ -32,19 +32,19 @@ require_once __DIR__ . '/../app/bootstrap.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tire Fitment Finder</title>
+    <title>Online Tire Size Finder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/assets/css/main.css">
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Tire Fitment Finder</h1>
-            <p class="text-gray-600">Enter your vehicle information to find compatible tires</p>
+        <!-- Header (center aligned) -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Online Tire Size Finder</h1>
+            <p class="text-gray-600">Enter your vehicle information to find compatible tire size</p>
         </header>
 
-        <!-- Legal Disclaimer (MANDATORY - Prominent) -->
+        <!-- Legal Disclaimer -->
         <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-md" x-show="!loading">
             <div class="flex">
                 <div class="flex-shrink-0">
@@ -66,8 +66,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
         <div x-data="tireFitmentApp()" x-init="init()">
             <!-- Search Form -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6" x-show="!showResults">
-                <!-- Tab Switcher -->
-                <div class="flex border-b mb-6">
+                <!-- Tab Switcher (center aligned) -->
+                <div class="flex flex-wrap justify-center gap-2 border-b mb-6">
                     <button 
                         @click="searchMode = 'vin'" 
                         :class="searchMode === 'vin' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'"
