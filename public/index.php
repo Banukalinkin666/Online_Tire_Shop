@@ -37,6 +37,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
     <link rel="stylesheet" href="/assets/css/main.css">
 </head>
 <body class="bg-gray-50 min-h-screen">
+    <script>(function(){if(typeof window!=='undefined'&&window.self!==window.top){document.documentElement.classList.add('tire-finder-embedded');document.body.classList.add('tire-finder-embedded');}})();</script>
     <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- Header (center aligned) -->
         <header class="mb-8 text-center">
@@ -525,61 +526,6 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 </div>
                             </div>
                         </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quote Request Modal -->
-            <div x-show="showQuoteForm" x-cloak
-                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-                 @keydown.escape.window="closeQuoteForm()">
-                <div x-show="showQuoteForm" x-transition
-                     class="bg-white rounded-lg shadow-xl w-full max-w-md"
-                     @click.outside="closeQuoteForm()">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-bold text-gray-900">Request a quote</h3>
-                            <button type="button" @click="closeQuoteForm()" class="text-gray-400 hover:text-gray-600 p-1 rounded">✕</button>
-                        </div>
-                        <form @submit.prevent="submitQuoteRequest()" class="space-y-4">
-                            <div>
-                                <label for="quote-fullname" class="block text-sm font-medium text-gray-700 mb-1">Full name</label>
-                                <input id="quote-fullname" type="text" x-model="quoteForm.fullName" required
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="Your full name">
-                            </div>
-                            <div>
-                                <label for="quote-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input id="quote-email" type="email" x-model="quoteForm.email" required
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="your@email.com">
-                            </div>
-                            <div>
-                                <label for="quote-phone" class="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
-                                <input id="quote-phone" type="tel" x-model="quoteForm.phone"
-                                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="Your phone number">
-                            </div>
-                            <div>
-                                <label for="quote-message" class="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                                <textarea id="quote-message" x-model="quoteForm.message" rows="3"
-                                          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                                          placeholder="Any additional details..."></textarea>
-                            </div>
-                            <p x-show="quoteError" x-text="quoteError" class="text-sm text-red-600"></p>
-                            <p x-show="quoteSuccess" class="text-sm text-green-600">Thank you. Your quote request has been submitted.</p>
-                            <div class="flex gap-2 pt-2">
-                                <button type="submit" :disabled="quoteSubmitting"
-                                        class="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium">
-                                    <span x-show="!quoteSubmitting">Request a quote</span>
-                                    <span x-show="quoteSubmitting">Sending...</span>
-                                </button>
-                                <button type="button" @click="closeQuoteForm()"
-                                        class="px-4 py-2.5 border border-gray-300 rounded-md hover:bg-gray-50 font-medium">
-                                    Cancel
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
             </div>
