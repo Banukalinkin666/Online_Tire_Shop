@@ -41,6 +41,13 @@ function tireFitmentApp() {
             }
         },
         
+        // Quote request form
+        showQuoteForm: false,
+        quoteForm: { fullName: '', email: '', phone: '', message: '' },
+        quoteSubmitting: false,
+        quoteSuccess: false,
+        quoteError: '',
+        
         // Initialize – load years so AI Direct Search dropdown is ready when user switches tab
         async init() {
             await this.loadYears();
@@ -565,7 +572,54 @@ function tireFitmentApp() {
             };
             this.resetForm();
         },
-        
+
+        openQuoteForm() {
+            this.quoteForm = { fullName: '', email: '', phone: '', message: '' };
+            this.quoteSuccess = false;
+            this.quoteError = '';
+            this.showQuoteForm = true;
+        },
+
+        closeQuoteForm() {
+            this.showQuoteForm = false;
+        },
+
+        async submitQuoteRequest() {
+            this.quoteError = '';
+            this.quoteSuccess = false;
+            if (!this.quoteForm.fullName || !this.quoteForm.email) {
+                this.quoteError = 'Please enter your full name and email.';
+                return;
+            }
+            try {
+                this.quoteSubmitting = true;
+                const response = await fetch(this.getApiUrl('quote-request.php'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullName: this.quoteForm.fullName.trim(),
+                        email: this.quoteForm.email.trim(),
+                        phone: (this.quoteForm.phone || '').trim(),
+                        message: (this.quoteForm.message || '').trim(),
+                        vehicle: this.results.vehicle ? `${this.results.vehicle.year || ''} ${this.results.vehicle.make || ''} ${this.results.vehicle.model || ''}`.trim() : '',
+                        frontTire: this.results.fitment?.front_tire || '',
+                        rearTire: this.results.fitment?.rear_tire || this.results.fitment?.front_tire || ''
+                    })
+                });
+                const data = await this.parseJsonResponse(response);
+                if (data && data.success) {
+                    this.quoteSuccess = true;
+                    setTimeout(() => { this.closeQuoteForm(); }, 2000);
+                } else {
+                    this.quoteError = (data && data.message) ? data.message : 'Failed to submit. Please try again.';
+                }
+            } catch (e) {
+                this.quoteError = 'Network error. Please try again.';
+            } finally {
+                this.quoteSubmitting = false;
+            }
+        },
+
         // Add vehicle to database
         async addVehicleToDatabase() {
             if (!this.vehicleToAdd) {

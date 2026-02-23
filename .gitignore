@@ -24,5 +24,8 @@ config/database.local.php
 *.tmp
 *.bak
 
+# Stored quote requests (may contain PII)
+data/
+
 # Render
 .render/
