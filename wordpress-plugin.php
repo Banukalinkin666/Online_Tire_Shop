@@ -25,15 +25,17 @@ if (!defined('ABSPATH')) {
  *   [tire_fitment url="..." height="800"]             – optional height in pixels
  *
  * Optional attributes:
- *   url     – Full URL to the tire finder app (e.g. https://online-tire-shop-pro.onrender.com). If set, embeds via iframe.
- *   height  – Iframe height: number (pixels) or "full" for 100vh (default: 900)
- *   api_path – (Local only) Custom path to API directory when not using url
+ *   url              – Full URL to the tire finder app (e.g. https://online-tire-shop-pro.onrender.com). If set, embeds via iframe.
+ *   height           – Iframe height: number (pixels) or "full" for 100vh (default: 900)
+ *   api_path         – (Local only) Custom path to API directory when not using url
+ *   quote_form_id    – ID of the element containing your quote form (e.g. Fluent Forms). When user clicks "Request a quote", the page scrolls to this element. Default: tire-finder-quote-form
  */
 function tire_fitment_shortcode($atts) {
     $atts = shortcode_atts([
-        'url'      => '',
-        'height'   => '900',
-        'api_path' => '',
+        'url'           => '',
+        'height'        => '900',
+        'api_path'      => '',
+        'quote_form_id' => 'tire-finder-quote-form',
     ], $atts, 'tire_fitment');
 
     // Option 1: Embed by URL (iframe) – use when your tire finder is hosted elsewhere (e.g. Render)
@@ -51,8 +53,14 @@ function tire_fitment_shortcode($atts) {
             }
             $style = sprintf('height: %dpx; width: 100%%; border: none; display: block;', $h);
         }
+        $quote_form_id = sanitize_key($atts['quote_form_id']);
+        if ($quote_form_id === '') {
+            $quote_form_id = 'tire-finder-quote-form';
+        }
+        tire_fitment_maybe_enqueue_quote_form_script();
         return sprintf(
-            '<div class="tire-fitment-embed" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
+            '<div class="tire-fitment-embed" data-quote-form-id="%s" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
+            esc_attr($quote_form_id),
             esc_attr($embed_url),
             esc_attr($style)
         );
@@ -82,6 +90,43 @@ function tire_fitment_shortcode($atts) {
     return ob_get_clean();
 }
 add_shortcode('tire_fitment', 'tire_fitment_shortcode');
+
+/**
+ * When embed is iframe, enqueue script so "Request a quote" in finder scrolls to WordPress form (e.g. Fluent Forms).
+ */
+function tire_fitment_maybe_enqueue_quote_form_script() {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+    add_action('wp_footer', 'tire_fitment_quote_form_footer_script', 20);
+}
+
+/**
+ * Output script that listens for TIRE_FINDER_REQUEST_QUOTE from iframe and scrolls to the quote form element.
+ */
+function tire_fitment_quote_form_footer_script() {
+    ?>
+    <script>
+    (function() {
+        window.addEventListener('message', function(event) {
+            if (!event.data || event.data.type !== 'TIRE_FINDER_REQUEST_QUOTE') return;
+            var embed = document.querySelector('.tire-fitment-embed');
+            if (!embed) return;
+            var id = embed.getAttribute('data-quote-form-id');
+            if (!id) return;
+            var el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                el.setAttribute('tabindex', '-1');
+                el.focus({ preventScroll: true });
+            }
+        });
+    })();
+    </script>
+    <?php
+}
 
 /**
  * Enqueue scripts and styles if shortcode is used on page (for local app mode)

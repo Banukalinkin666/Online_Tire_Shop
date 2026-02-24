@@ -574,6 +574,18 @@ function tireFitmentApp() {
         },
 
         openQuoteForm() {
+            // When embedded in WordPress (or any iframe), tell parent to show their form (e.g. Fluent Forms) instead of our modal
+            if (typeof window !== 'undefined' && window.self !== window.top) {
+                try {
+                    window.parent.postMessage({
+                        type: 'TIRE_FINDER_REQUEST_QUOTE',
+                        vehicle: this.results.vehicle || {},
+                        frontTire: this.results.fitment?.front_tire || '',
+                        rearTire: this.results.fitment?.rear_tire || this.results.fitment?.front_tire || ''
+                    }, '*');
+                } catch (e) { /* cross-origin or no parent */ }
+                return;
+            }
             this.quoteForm = { fullName: '', email: '', phone: '', message: '' };
             this.quoteSuccess = false;
             this.quoteError = '';

@@ -45,6 +45,7 @@ Your app is already live at **https://online-tire-shop-pro.onrender.com** (or yo
 | `url` | `url="https://online-tire-shop-pro.onrender.com"` | Tire finder app URL (overrides default). |
 | `height` | `height="800"` | Iframe height in pixels (default: 900). |
 | `height="full"` | `height="full"` | Iframe uses full viewport height. |
+| `quote_form_id` | `quote_form_id="tire-finder-quote-form"` | ID of the element containing your quote form; page scrolls here when user clicks “Request a quote” (default: `tire-finder-quote-form`). |
 
 **Examples:**
 
@@ -59,6 +60,35 @@ Your app is already live at **https://online-tire-shop-pro.onrender.com** (or yo
 
 - `[tire_fitment url="https://online-tire-shop-pro.onrender.com" height="full"]`  
   Same URL, full viewport height.
+
+---
+
+## Use your own “Request a quote” form (e.g. Fluent Forms)
+
+When the finder is embedded in an **iframe**, clicking **“Request a quote”** inside the finder sends a message to your WordPress page. You can show your own form (e.g. Fluent Forms) on the same page and scroll to it when the user clicks the button.
+
+**Steps:**
+
+1. **Create your form** in Fluent Forms (or any plugin that provides a shortcode). Add fields such as Full name, Email, Phone, Message. Copy the shortcode (e.g. `[fluentform id="3"]`).
+
+2. **On the same page** where you have the tire finder, add a **wrapper div** with the ID `tire-finder-quote-form` (or another ID you prefer) and put your form shortcode inside it:
+
+   ```
+   [tire_fitment url="https://online-tire-shop-pro.onrender.com"]
+
+   <div id="tire-finder-quote-form">
+     [fluentform id="3"]
+   </div>
+   ```
+
+3. When the user finds a tire size and clicks **“Request a quote”** in the finder, the page will **smoothly scroll** to your form so they can fill it out.
+
+**Optional:** If you use a different ID for the form container, pass it in the shortcode:
+
+- `[tire_fitment url="..." quote_form_id="my-quote-form"]`  
+  Then use `<div id="my-quote-form">[fluentform id="3"]</div>` on the same page.
+
+The finder also sends **vehicle and tire data** to the parent page (vehicle year/make/model, front and rear tire sizes). If Fluent Forms or your theme supports hidden fields or pre-filling from URL/JS, you can use that data later to pre-fill or store with the submission.
 
 ---
 
