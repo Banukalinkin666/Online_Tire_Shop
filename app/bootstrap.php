@@ -32,7 +32,7 @@ if (file_exists($envFile) && is_readable($envFile)) {
 
 // Sync getenv() into $_ENV/$_SERVER for consistency (Render sets real env vars)
 if (function_exists('getenv')) {
-    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE', 'DATABASE_URL', 'QUOTE_NOTIFICATION_EMAIL', 'QUOTE_MAIL_FROM'];
+    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE', 'DATABASE_URL', 'QUOTE_NOTIFICATION_EMAIL', 'QUOTE_MAIL_FROM', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_SECURE'];
     foreach ($envVars as $var) {
         $value = getenv($var);
         if ($value !== false && $value !== '') {

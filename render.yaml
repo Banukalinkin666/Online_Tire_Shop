@@ -13,10 +13,20 @@ services:
     envVars:
       - key: PHP_VERSION
         value: "8.2"
-      # Quote request notifications: set QUOTE_NOTIFICATION_EMAIL in Render Dashboard → Environment
+      # Quote request notifications: set in Render Dashboard → Environment (SMTP required for delivery)
       - key: QUOTE_NOTIFICATION_EMAIL
         sync: false
       - key: QUOTE_MAIL_FROM
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_SECURE
         sync: false
       - key: DATABASE_URL
         sync: false

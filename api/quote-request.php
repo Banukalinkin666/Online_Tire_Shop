@@ -14,6 +14,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
 
 use App\Helpers\ResponseHelper;
 use App\Helpers\InputHelper;
+use App\Helpers\MailHelper;
 
 ob_end_clean();
 header('Content-Type: application/json');
@@ -103,12 +104,17 @@ if ($notifyEmail !== '' && filter_var($notifyEmail, FILTER_VALIDATE_EMAIL)) {
     if ($from === '') {
         $from = 'noreply@' . (isset($_SERVER['HTTP_HOST']) ? preg_replace('/:[0-9]+$/', '', $_SERVER['HTTP_HOST']) : 'localhost');
     }
-    $headers = [
-        'Content-Type: text/plain; charset=UTF-8',
-        'Reply-To: ' . $fullName . ' <' . $email . '>',
-        'From: ' . $from,
-    ];
-    @mail($notifyEmail, $subject, $body, implode("\r\n", $headers));
+    $replyTo = $fullName . ' <' . $email . '>';
+    // Prefer SMTP (works on Render; use Gmail App Password). Fall back to PHP mail().
+    $sent = MailHelper::sendSmtp($notifyEmail, $subject, $body, $from, 'Tire Quote', $replyTo);
+    if (!$sent) {
+        $headers = [
+            'Content-Type: text/plain; charset=UTF-8',
+            'Reply-To: ' . $replyTo,
+            'From: ' . $from,
+        ];
+        @mail($notifyEmail, $subject, $body, implode("\r\n", $headers));
+    }
 }
 
 ResponseHelper::success(['message' => 'Quote request received. We will get back to you soon.']);
