@@ -3,7 +3,7 @@
  * Plugin Name: Tire Fitment Finder
  * Plugin URI: https://example.com/tire-fitment-finder
  * Description: Embed tire fitment finder into WordPress via shortcode. Use a URL (e.g. your app on Render) or local app files.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Your Name
  * Author URI: https://example.com
  * License: GPL v2 or later
@@ -51,12 +51,12 @@ function tire_fitment_shortcode($atts) {
             }
             $style = sprintf('height: %dpx; width: 100%%; border: none; display: block;', $h);
         }
-        tire_fitment_maybe_enqueue_quote_form_script();
-        return sprintf(
+        $iframe_html = sprintf(
             '<div class="tire-fitment-embed" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
             esc_attr($embed_url),
             esc_attr($style)
         );
+        return $iframe_html . tire_fitment_get_quote_modal_html();
     }
 
     // Option 2: Local app – include app files from server (app must be on same server as WordPress)
@@ -85,21 +85,10 @@ function tire_fitment_shortcode($atts) {
 add_shortcode('tire_fitment', 'tire_fitment_shortcode');
 
 /**
- * When embed is iframe, enqueue built-in quote popup (vehicle/tire summary + form, email on submit).
+ * Return built-in quote modal (summary + form) and script. Output with shortcode so it's always present when iframe is used.
  */
-function tire_fitment_maybe_enqueue_quote_form_script() {
-    static $done = false;
-    if ($done) {
-        return;
-    }
-    $done = true;
-    add_action('wp_footer', 'tire_fitment_quote_form_footer_script', 20);
-}
-
-/**
- * Output built-in quote modal (summary + form) and script. On TIRE_FINDER_REQUEST_QUOTE show popup; on submit send email via AJAX.
- */
-function tire_fitment_quote_form_footer_script() {
+function tire_fitment_get_quote_modal_html() {
+    ob_start();
     $ajax_url = admin_url('admin-ajax.php');
     $nonce    = wp_create_nonce('tire_fitment_quote');
     ?>
@@ -157,10 +146,12 @@ function tire_fitment_quote_form_footer_script() {
         var closeBtn = overlay ? overlay.querySelector('.tire-finder-quote-modal-close') : null;
 
         function openModal() {
-            if (overlay) overlay.classList.add('is-open');
+            var el = document.getElementById('tire-finder-quote-modal-overlay');
+            if (el) el.classList.add('is-open');
         }
         function closeModal() {
-            if (overlay) overlay.classList.remove('is-open');
+            var el = document.getElementById('tire-finder-quote-modal-overlay');
+            if (el) el.classList.remove('is-open');
         }
         function showMsg(text, isError) {
             if (!msgEl) return;
@@ -179,6 +170,9 @@ function tire_fitment_quote_form_footer_script() {
 
         window.addEventListener('message', function(event) {
             if (!event.data || event.data.type !== 'TIRE_FINDER_REQUEST_QUOTE') return;
+
+            var overlayEl = document.getElementById('tire-finder-quote-modal-overlay');
+            if (!overlayEl) return;
 
             var v = event.data.vehicle || {};
             var year = v.year || '', make = v.make || '', model = v.model || '', trim = v.trim || '';
@@ -239,6 +233,7 @@ function tire_fitment_quote_form_footer_script() {
     })();
     </script>
     <?php
+    return ob_get_clean();
 }
 
 /**
