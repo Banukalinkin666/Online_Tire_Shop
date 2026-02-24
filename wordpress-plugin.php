@@ -104,7 +104,8 @@ function tire_fitment_maybe_enqueue_quote_form_script() {
 }
 
 /**
- * Output script that listens for TIRE_FINDER_REQUEST_QUOTE from iframe and scrolls to the quote form element.
+ * Output script that listens for TIRE_FINDER_REQUEST_QUOTE from iframe, scrolls to the quote form,
+ * and displays vehicle + tire size in a summary above the form (and optionally sets hidden form fields).
  */
 function tire_fitment_quote_form_footer_script() {
     ?>
@@ -117,11 +118,42 @@ function tire_fitment_quote_form_footer_script() {
             var id = embed.getAttribute('data-quote-form-id');
             if (!id) return;
             var el = document.getElementById(id);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                el.setAttribute('tabindex', '-1');
-                el.focus({ preventScroll: true });
+            if (!el) return;
+
+            var v = event.data.vehicle || {};
+            var year = v.year || '';
+            var make = v.make || '';
+            var model = v.model || '';
+            var trim = v.trim || '';
+            var frontTire = event.data.frontTire || '';
+            var rearTire = event.data.rearTire || '';
+
+            var vehicleText = [year, make, model].filter(Boolean).join(' ');
+            if (trim) vehicleText += ' - ' + trim;
+            var tireText = frontTire;
+            if (rearTire && rearTire !== frontTire) tireText += ' / ' + rearTire;
+
+            var summaryId = 'tire-finder-quote-summary';
+            var summary = document.getElementById(summaryId);
+            if (!summary) {
+                summary = document.createElement('div');
+                summary.id = summaryId;
+                summary.className = 'tire-finder-quote-summary';
+                summary.setAttribute('style', 'margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; font-size: 0.9375rem;');
+                el.insertBefore(summary, el.firstChild);
             }
+            summary.innerHTML = '<strong>Quote for:</strong> ' + (vehicleText || '—') + '<br><strong>Tire size:</strong> ' + (tireText || '—');
+
+            var formDataStr = vehicleText + ' | Tire: ' + tireText;
+            var formEl = el.querySelector('form');
+            if (formEl) {
+                var hidden = formEl.querySelector('input[name="tire_finder_data"], input[name="tire_finder_vehicle"], input[id*="tire_finder"]');
+                if (hidden) hidden.value = formDataStr;
+            }
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.setAttribute('tabindex', '-1');
+            el.focus({ preventScroll: true });
         });
     })();
     </script>
