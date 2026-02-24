@@ -91,4 +91,24 @@ if (is_dir($dataDir) && is_writable($dataDir)) {
     @file_put_contents($file, json_encode($existing, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 }
 
+// Send notification email if recipient is configured
+$notifyEmail = trim((string) (getenv('QUOTE_NOTIFICATION_EMAIL') ?: $_ENV['QUOTE_NOTIFICATION_EMAIL'] ?? $_SERVER['QUOTE_NOTIFICATION_EMAIL'] ?? (defined('QUOTE_NOTIFICATION_EMAIL') ? QUOTE_NOTIFICATION_EMAIL : '')));
+if ($notifyEmail !== '' && filter_var($notifyEmail, FILTER_VALIDATE_EMAIL)) {
+    $tireStr = $frontTire . ($rearTire && $rearTire !== $frontTire ? ' / ' . $rearTire : '');
+    $subject = 'Tire quote request: ' . $vehicle;
+    $body = "A quote request has been submitted.\n\n";
+    $body .= "--- Vehicle & tire ---\nVehicle: " . $vehicle . "\nTire size: " . $tireStr . "\n\n";
+    $body .= "--- Contact ---\nName: " . $fullName . "\nEmail: " . $email . "\nPhone: " . $phone . "\n\n--- Message ---\n" . $message . "\n";
+    $from = trim((string) (getenv('QUOTE_MAIL_FROM') ?: $_ENV['QUOTE_MAIL_FROM'] ?? $_SERVER['QUOTE_MAIL_FROM'] ?? ''));
+    if ($from === '') {
+        $from = 'noreply@' . (isset($_SERVER['HTTP_HOST']) ? preg_replace('/:[0-9]+$/', '', $_SERVER['HTTP_HOST']) : 'localhost');
+    }
+    $headers = [
+        'Content-Type: text/plain; charset=UTF-8',
+        'Reply-To: ' . $fullName . ' <' . $email . '>',
+        'From: ' . $from,
+    ];
+    @mail($notifyEmail, $subject, $body, implode("\r\n", $headers));
+}
+
 ResponseHelper::success(['message' => 'Quote request received. We will get back to you soon.']);

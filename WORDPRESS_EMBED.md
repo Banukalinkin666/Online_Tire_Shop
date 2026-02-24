@@ -2,6 +2,27 @@
 
 Use the shortcode on your **existing WordPress site** to show the tire finder (e.g. the one hosted on Render).
 
+---
+
+## Iframe code (paste into any page)
+
+If you prefer **raw HTML** instead of the shortcode (e.g. in a **Custom HTML** block or another CMS), use this iframe code. Replace `https://online-tire-shop-pro.onrender.com` with your tire finder URL if different.
+
+```html
+<div style="width: 100%;">
+  <iframe
+    src="https://online-tire-shop-pro.onrender.com"
+    style="height: 900px; width: 100%; border: none; display: block;"
+    title="Tire Fitment Finder"
+  ></iframe>
+</div>
+```
+
+- **Height:** Change `900px` to any value (e.g. `800px`) or use `100vh` for full viewport height.
+- **With the plugin:** Using the shortcode `[tire_fitment]` is better on WordPress because it also adds the “Request a quote” form and email. The iframe code above only shows the finder.
+
+---
+
 ## Option A: Tire finder hosted elsewhere (e.g. Render) – recommended
 
 Your app is already live at **https://online-tire-shop-pro.onrender.com** (or your own URL). Embed it in WordPress with an iframe.

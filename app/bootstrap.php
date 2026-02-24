@@ -11,14 +11,31 @@ if (!defined('TIRESHOP_BOOTSTRAP_LOADED')) {
     define('TIRESHOP_BOOTSTRAP_LOADED', true);
 }
 
-// Load environment variables (for Render and local development)
-// Render automatically injects env vars, but ensure they're accessible
+// Load .env from project root (so API and all entry points see QUOTE_*, GEMINI_*, DB_*, etc.)
+$envFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env';
+if (file_exists($envFile) && is_readable($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0) continue;
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $key = trim($parts[0]);
+            $value = trim($parts[1]);
+            if ($key !== '') {
+                $_ENV[$key] = $value;
+                $_SERVER[$key] = $value;
+            }
+        }
+    }
+}
+
+// Sync getenv() into $_ENV/$_SERVER for consistency (Render sets real env vars)
 if (function_exists('getenv')) {
-    // Sync getenv() values to $_ENV and $_SERVER for consistency
-    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE', 'DATABASE_URL'];
+    $envVars = ['GEMINI_API_KEY', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS', 'DB_PORT', 'DB_TYPE', 'DATABASE_URL', 'QUOTE_NOTIFICATION_EMAIL', 'QUOTE_MAIL_FROM'];
     foreach ($envVars as $var) {
         $value = getenv($var);
-        if ($value !== false) {
+        if ($value !== false && $value !== '') {
             $_ENV[$var] = $value;
             $_SERVER[$var] = $value;
         }
