@@ -45,8 +45,6 @@ Your app is already live at **https://online-tire-shop-pro.onrender.com** (or yo
 | `url` | `url="https://online-tire-shop-pro.onrender.com"` | Tire finder app URL (overrides default). |
 | `height` | `height="800"` | Iframe height in pixels (default: 900). |
 | `height="full"` | `height="full"` | Iframe uses full viewport height. |
-| `quote_form_id` | `quote_form_id="tire-finder-quote-form"` | ID of the element containing your quote form; page scrolls here when user clicks “Request a quote” (default: `tire-finder-quote-form`). |
-
 **Examples:**
 
 - `[tire_fitment]`  
@@ -63,29 +61,21 @@ Your app is already live at **https://online-tire-shop-pro.onrender.com** (or yo
 
 ---
 
-## Use your own “Request a quote” form (e.g. Fluent Forms)
+## Request a quote (built-in popup and email)
 
-When the finder is embedded in an **iframe**, clicking **“Request a quote”** inside the finder opens a **popup modal** on your WordPress page with your Fluent Form and a summary of the selected **year, make, model, and tire size**.
+When the finder is embedded in an **iframe**, clicking **“Request a quote”** opens a **popup** on your WordPress page with:
+
+- **Vehicle and tire summary:** Year, Make, Model and selected tire size
+- **Form fields:** Name, Email, Phone, Message
+- **Request a quote** button
+
+When the user submits the form, an **email** is sent to the address you set in **Settings → Tire Fitment** (“Quote request notification email”). The email includes vehicle, tire size, name, email, phone, and message.
 
 **Steps:**
 
-1. **Create your form** in Fluent Forms (e.g. fields: Full name, Email, Phone, Message). Copy the shortcode (e.g. `[fluentform id="7"]`).
-
-2. **On the same page** as the tire finder, add a **wrapper div** with the ID `tire-finder-quote-form` and put your form shortcode inside it:
-
-   ```
-   [tire_fitment url="https://online-tire-shop-pro.onrender.com"]
-
-   <div id="tire-finder-quote-form">
-     [fluentform id="7"]
-   </div>
-   ```
-
-3. When the user finds a tire size and clicks **“Request a quote”**, a **popup** opens showing **Quote for: Year Make Model** and **Tire size: front / rear**, with your form below. The user can close the popup with the × button, by clicking outside, or with the Escape key.
-
-**Optional:** Use a different container ID with `quote_form_id="my-quote-form"` in the shortcode, and wrap your form in `<div id="my-quote-form">[fluentform id="7"]</div>`.
-
-**Optional – include data in form submission:** Add a **Hidden** field in Fluent Form with name `tire_finder_data` (or `tire_finder_vehicle`). The plugin will set its value to the vehicle and tire summary so it is submitted with the form.
+1. Add **`[tire_fitment]`** (or `[tire_fitment url="https://online-tire-shop-pro.onrender.com"]`) to your page. No extra form or div is needed.
+2. In **Settings → Tire Fitment**, set **Quote request notification email** to the address that should receive quote requests (default: site admin email).
+3. Save. When a visitor clicks “Request a quote” in the finder and submits the form, that email receives the full details.
 
 ---
 

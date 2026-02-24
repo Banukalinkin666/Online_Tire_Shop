@@ -28,14 +28,12 @@ if (!defined('ABSPATH')) {
  *   url              – Full URL to the tire finder app (e.g. https://online-tire-shop-pro.onrender.com). If set, embeds via iframe.
  *   height           – Iframe height: number (pixels) or "full" for 100vh (default: 900)
  *   api_path         – (Local only) Custom path to API directory when not using url
- *   quote_form_id    – ID of the element containing your quote form (e.g. Fluent Forms). When user clicks "Request a quote", the page scrolls to this element. Default: tire-finder-quote-form
  */
 function tire_fitment_shortcode($atts) {
     $atts = shortcode_atts([
-        'url'           => '',
-        'height'        => '900',
-        'api_path'      => '',
-        'quote_form_id' => 'tire-finder-quote-form',
+        'url'    => '',
+        'height' => '900',
+        'api_path' => '',
     ], $atts, 'tire_fitment');
 
     // Option 1: Embed by URL (iframe) – use when your tire finder is hosted elsewhere (e.g. Render)
@@ -53,14 +51,9 @@ function tire_fitment_shortcode($atts) {
             }
             $style = sprintf('height: %dpx; width: 100%%; border: none; display: block;', $h);
         }
-        $quote_form_id = sanitize_key($atts['quote_form_id']);
-        if ($quote_form_id === '') {
-            $quote_form_id = 'tire-finder-quote-form';
-        }
         tire_fitment_maybe_enqueue_quote_form_script();
         return sprintf(
-            '<div class="tire-fitment-embed" data-quote-form-id="%s" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
-            esc_attr($quote_form_id),
+            '<div class="tire-fitment-embed" style="width: 100%%;"><iframe src="%s" style="%s" title="Tire Fitment Finder"></iframe></div>',
             esc_attr($embed_url),
             esc_attr($style)
         );
@@ -92,7 +85,7 @@ function tire_fitment_shortcode($atts) {
 add_shortcode('tire_fitment', 'tire_fitment_shortcode');
 
 /**
- * When embed is iframe, enqueue script so "Request a quote" in finder scrolls to WordPress form (e.g. Fluent Forms).
+ * When embed is iframe, enqueue built-in quote popup (vehicle/tire summary + form, email on submit).
  */
 function tire_fitment_maybe_enqueue_quote_form_script() {
     static $done = false;
@@ -104,9 +97,11 @@ function tire_fitment_maybe_enqueue_quote_form_script() {
 }
 
 /**
- * Output script: wrap quote form in a modal popup; on TIRE_FINDER_REQUEST_QUOTE show popup with vehicle + tire summary.
+ * Output built-in quote modal (summary + form) and script. On TIRE_FINDER_REQUEST_QUOTE show popup; on submit send email via AJAX.
  */
 function tire_fitment_quote_form_footer_script() {
+    $ajax_url = admin_url('admin-ajax.php');
+    $nonce    = wp_create_nonce('tire_fitment_quote');
     ?>
     <style>
     .tire-finder-quote-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
@@ -115,89 +110,132 @@ function tire_fitment_quote_form_footer_script() {
     .tire-finder-quote-modal-close { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: #6b7280; padding: 4px; }
     .tire-finder-quote-modal-close:hover { color: #111; }
     .tire-finder-quote-summary { margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; font-size: 0.9375rem; }
+    .tire-finder-quote-form label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
+    .tire-finder-quote-form input, .tire-finder-quote-form textarea { width: 100%; padding: 8px 12px; margin-bottom: 12px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; }
+    .tire-finder-quote-form .tire-finder-quote-msg { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+    .tire-finder-quote-form .tire-finder-quote-msg.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .tire-finder-quote-form .tire-finder-quote-msg.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .tire-finder-quote-form button[type="submit"] { background: #2563eb; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; }
+    .tire-finder-quote-form button[type="submit"]:hover { background: #1d4ed8; }
+    .tire-finder-quote-form button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
     </style>
+    <div id="tire-finder-quote-modal-overlay" class="tire-finder-quote-modal-overlay" aria-modal="true" role="dialog">
+        <div class="tire-finder-quote-modal-content">
+            <button type="button" class="tire-finder-quote-modal-close" aria-label="Close">&times;</button>
+            <div id="tire-finder-quote-summary" class="tire-finder-quote-summary" style="display: none;"></div>
+            <form id="tire-finder-quote-form" class="tire-finder-quote-form">
+                <input type="hidden" name="tire_finder_vehicle" id="tire_finder_vehicle" value="">
+                <input type="hidden" name="tire_finder_tire" id="tire_finder_tire" value="">
+                <div>
+                    <label for="tire_finder_name">Name <span style="color:#dc2626">*</span></label>
+                    <input type="text" name="name" id="tire_finder_name" required placeholder="Your name">
+                </div>
+                <div>
+                    <label for="tire_finder_email">Email <span style="color:#dc2626">*</span></label>
+                    <input type="email" name="email" id="tire_finder_email" required placeholder="your@email.com">
+                </div>
+                <div>
+                    <label for="tire_finder_phone">Phone</label>
+                    <input type="tel" name="phone" id="tire_finder_phone" placeholder="Your phone number">
+                </div>
+                <div>
+                    <label for="tire_finder_message">Message</label>
+                    <textarea name="message" id="tire_finder_message" rows="3" placeholder="Any additional details..."></textarea>
+                </div>
+                <div id="tire-finder-quote-msg" class="tire-finder-quote-msg" style="display: none;"></div>
+                <button type="submit">Request a quote</button>
+            </form>
+        </div>
+    </div>
     <script>
     (function() {
-        function getQuoteFormId() {
-            var embed = document.querySelector('.tire-fitment-embed');
-            return embed ? embed.getAttribute('data-quote-form-id') || 'tire-finder-quote-form' : 'tire-finder-quote-form';
-        }
+        var overlay = document.getElementById('tire-finder-quote-modal-overlay');
+        var content = overlay ? overlay.querySelector('.tire-finder-quote-modal-content') : null;
+        var summary = document.getElementById('tire-finder-quote-summary');
+        var form = document.getElementById('tire-finder-quote-form');
+        var msgEl = document.getElementById('tire-finder-quote-msg');
+        var closeBtn = overlay ? overlay.querySelector('.tire-finder-quote-modal-close') : null;
+
         function openModal() {
-            var overlay = document.getElementById('tire-finder-quote-modal-overlay');
             if (overlay) overlay.classList.add('is-open');
         }
         function closeModal() {
-            var overlay = document.getElementById('tire-finder-quote-modal-overlay');
             if (overlay) overlay.classList.remove('is-open');
         }
-        function initModal() {
-            var id = getQuoteFormId();
-            var el = document.getElementById(id);
-            if (!el || document.getElementById('tire-finder-quote-modal-overlay')) return;
-            var overlay = document.createElement('div');
-            overlay.id = 'tire-finder-quote-modal-overlay';
-            overlay.className = 'tire-finder-quote-modal-overlay';
-            overlay.setAttribute('aria-modal', 'true');
-            overlay.setAttribute('role', 'dialog');
-            var content = document.createElement('div');
-            content.className = 'tire-finder-quote-modal-content';
-            var closeBtn = document.createElement('button');
-            closeBtn.type = 'button';
-            closeBtn.className = 'tire-finder-quote-modal-close';
-            closeBtn.innerHTML = '&times;';
-            closeBtn.setAttribute('aria-label', 'Close');
-            closeBtn.onclick = closeModal;
-            overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
-            content.onclick = function(e) { e.stopPropagation(); };
-            document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
-            content.appendChild(closeBtn);
-            el.parentNode.insertBefore(overlay, el);
-            content.appendChild(el);
-            overlay.appendChild(content);
+        function showMsg(text, isError) {
+            if (!msgEl) return;
+            msgEl.textContent = text;
+            msgEl.className = 'tire-finder-quote-msg ' + (isError ? 'error' : 'success');
+            msgEl.style.display = 'block';
         }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initModal);
-        } else {
-            initModal();
+        function hideMsg() {
+            if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
         }
+
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (overlay) overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+        if (content) content.onclick = function(e) { e.stopPropagation(); };
+
         window.addEventListener('message', function(event) {
             if (!event.data || event.data.type !== 'TIRE_FINDER_REQUEST_QUOTE') return;
-            var id = getQuoteFormId();
-            var el = document.getElementById(id);
-            if (!el) return;
 
             var v = event.data.vehicle || {};
-            var year = v.year || '';
-            var make = v.make || '';
-            var model = v.model || '';
-            var trim = v.trim || '';
-            var frontTire = event.data.frontTire || '';
-            var rearTire = event.data.rearTire || '';
+            var year = v.year || '', make = v.make || '', model = v.model || '', trim = v.trim || '';
+            var frontTire = event.data.frontTire || '', rearTire = event.data.rearTire || '';
 
             var vehicleText = [year, make, model].filter(Boolean).join(' ');
             if (trim) vehicleText += ' - ' + trim;
             var tireText = frontTire;
             if (rearTire && rearTire !== frontTire) tireText += ' / ' + rearTire;
 
-            var summaryId = 'tire-finder-quote-summary';
-            var summary = document.getElementById(summaryId);
-            if (!summary) {
-                summary = document.createElement('div');
-                summary.id = summaryId;
-                summary.className = 'tire-finder-quote-summary';
-                el.insertBefore(summary, el.firstChild);
+            if (summary) {
+                summary.innerHTML = '<strong>Quote for:</strong> ' + (vehicleText || '—') + '<br><strong>Tire size:</strong> ' + (tireText || '—');
+                summary.style.display = 'block';
             }
-            summary.innerHTML = '<strong>Quote for:</strong> ' + (vehicleText || '—') + '<br><strong>Tire size:</strong> ' + (tireText || '—');
-
-            var formDataStr = vehicleText + ' | Tire: ' + tireText;
-            var formEl = el.querySelector('form');
-            if (formEl) {
-                var hidden = formEl.querySelector('input[name="tire_finder_data"], input[name="tire_finder_vehicle"], input[id*="tire_finder"]');
-                if (hidden) hidden.value = formDataStr;
-            }
-
+            var vehicleInput = document.getElementById('tire_finder_vehicle');
+            var tireInput = document.getElementById('tire_finder_tire');
+            if (vehicleInput) vehicleInput.value = vehicleText;
+            if (tireInput) tireInput.value = tireText;
+            if (form) form.reset();
+            if (vehicleInput) vehicleInput.value = vehicleText;
+            if (tireInput) tireInput.value = tireText;
+            hideMsg();
             openModal();
         });
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                hideMsg();
+                var submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending...'; }
+
+                var formData = new FormData(form);
+                formData.append('action', 'tire_fitment_submit_quote');
+                formData.append('nonce', '<?php echo esc_js($nonce); ?>');
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '<?php echo esc_url($ajax_url); ?>');
+                xhr.onload = function() {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Request a quote'; }
+                    var res;
+                    try { res = JSON.parse(xhr.responseText || '{}'); } catch (err) { res = { success: false }; }
+                    var msg = (res.data && res.data.message) ? res.data.message : (res.message || '');
+                    if (res.success) {
+                        showMsg(msg || 'Thank you. Your quote request has been sent.', false);
+                        setTimeout(closeModal, 2500);
+                    } else {
+                        showMsg(msg || 'Something went wrong. Please try again.', true);
+                    }
+                };
+                xhr.onerror = function() {
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Request a quote'; }
+                    showMsg('Network error. Please try again.', true);
+                };
+                xhr.send(formData);
+            });
+        }
     })();
     </script>
     <?php
@@ -216,15 +254,70 @@ function tire_fitment_enqueue_assets() {
 add_action('wp_enqueue_scripts', 'tire_fitment_enqueue_assets');
 
 /**
- * Register settings for default embed URL
+ * Register settings for default embed URL and quote notification email
  */
 function tire_fitment_register_settings() {
     register_setting('tire_fitment_settings', 'tire_fitment_embed_url', [
         'type'              => 'string',
         'sanitize_callback' => 'esc_url_raw',
     ]);
+    register_setting('tire_fitment_settings', 'tire_fitment_quote_email', [
+        'type'              => 'string',
+        'sanitize_callback' => 'sanitize_email',
+    ]);
 }
 add_action('admin_init', 'tire_fitment_register_settings');
+
+/**
+ * AJAX: submit quote request and send email
+ */
+function tire_fitment_ajax_submit_quote() {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'tire_fitment_quote')) {
+        wp_send_json_error(['message' => 'Security check failed.']);
+    }
+
+    $name    = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+    $email   = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
+    $phone   = isset($_POST['phone']) ? sanitize_text_field(wp_unslash($_POST['phone'])) : '';
+    $message = isset($_POST['message']) ? sanitize_textarea_field(wp_unslash($_POST['message'])) : '';
+    $vehicle = isset($_POST['tire_finder_vehicle']) ? sanitize_text_field(wp_unslash($_POST['tire_finder_vehicle'])) : '';
+    $tire    = isset($_POST['tire_finder_tire']) ? sanitize_text_field(wp_unslash($_POST['tire_finder_tire'])) : '';
+
+    if (empty($name) || empty($email)) {
+        wp_send_json_error(['message' => 'Please enter your name and email.']);
+    }
+    if (!is_email($email)) {
+        wp_send_json_error(['message' => 'Please enter a valid email address.']);
+    }
+
+    $to = get_option('tire_fitment_quote_email', get_option('admin_email'));
+    if (!is_email($to)) {
+        $to = get_option('admin_email');
+    }
+
+    $subject = 'Tire quote request: ' . $vehicle;
+    $body    = "A quote request has been submitted.\n\n";
+    $body   .= "--- Vehicle & tire ---\n";
+    $body   .= "Vehicle: " . $vehicle . "\n";
+    $body   .= "Tire size: " . $tire . "\n\n";
+    $body   .= "--- Contact ---\n";
+    $body   .= "Name: " . $name . "\n";
+    $body   .= "Email: " . $email . "\n";
+    $body   .= "Phone: " . $phone . "\n\n";
+    $body   .= "--- Message ---\n" . $message . "\n";
+
+    $headers = ['Content-Type: text/plain; charset=UTF-8', 'Reply-To: ' . $name . ' <' . $email . '>'];
+
+    $sent = wp_mail($to, $subject, $body, $headers);
+
+    if ($sent) {
+        wp_send_json_success(['message' => 'Thank you. Your quote request has been sent. We will get back to you soon.']);
+    } else {
+        wp_send_json_error(['message' => 'Unable to send your request. Please try again or contact us directly.']);
+    }
+}
+add_action('wp_ajax_tire_fitment_submit_quote', 'tire_fitment_ajax_submit_quote');
+add_action('wp_ajax_nopriv_tire_fitment_submit_quote', 'tire_fitment_ajax_submit_quote');
 
 /**
  * Add admin menu
@@ -248,9 +341,12 @@ function tire_fitment_settings_page() {
         return;
     }
     $embed_url = get_option('tire_fitment_embed_url', '');
+    $quote_email = get_option('tire_fitment_quote_email', get_option('admin_email'));
     if (isset($_POST['tire_fitment_embed_url']) && check_admin_referer('tire_fitment_settings')) {
         $embed_url = esc_url_raw(wp_unslash($_POST['tire_fitment_embed_url']));
         update_option('tire_fitment_embed_url', $embed_url);
+        $quote_email = isset($_POST['tire_fitment_quote_email']) ? sanitize_email(wp_unslash($_POST['tire_fitment_quote_email'])) : $quote_email;
+        update_option('tire_fitment_quote_email', $quote_email);
         echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
     }
     ?>
@@ -268,12 +364,21 @@ function tire_fitment_settings_page() {
                         <p class="description">If your tire finder is hosted elsewhere (e.g. Render), enter its URL here. Then <code>[tire_fitment]</code> will embed it in an iframe. Leave blank to use local app files (if installed).</p>
                     </td>
                 </tr>
+                <tr>
+                    <th scope="row"><label for="tire_fitment_quote_email">Quote request notification email</label></th>
+                    <td>
+                        <input type="email" name="tire_fitment_quote_email" id="tire_fitment_quote_email"
+                               value="<?php echo esc_attr($quote_email); ?>"
+                               class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"/>
+                        <p class="description">Email address where quote requests (Name, Email, Phone, Message, Vehicle, Tire size) are sent when a user clicks "Request a quote" and submits the form. Default: site admin email.</p>
+                    </td>
+                </tr>
             </table>
             <?php submit_button('Save'); ?>
         </form>
         <div class="card" style="max-width: 640px; margin-top: 20px;">
             <h2>Shortcode usage</h2>
-            <p>Add the shortcode to any post or page:</p>
+            <p>Add the shortcode to any post or page. When the user clicks "Request a quote" in the tire finder, a popup opens with vehicle/tire details and a form (Name, Email, Phone, Message). Submissions are sent to the email address above.</p>
             <ul style="list-style: disc; margin-left: 20px;">
                 <li><code>[tire_fitment]</code> – uses the default URL above, or local app if no URL is set.</li>
                 <li><code>[tire_fitment url="https://online-tire-shop-pro.onrender.com"]</code> – embed from this URL.</li>

@@ -29,3 +29,6 @@ data/
 
 # Render
 .render/
+
+# Built WordPress plugin (zip is in project root)
+tire-fitment-finder/
