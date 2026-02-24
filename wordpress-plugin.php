@@ -104,19 +104,65 @@ function tire_fitment_maybe_enqueue_quote_form_script() {
 }
 
 /**
- * Output script that listens for TIRE_FINDER_REQUEST_QUOTE from iframe, scrolls to the quote form,
- * and displays vehicle + tire size in a summary above the form (and optionally sets hidden form fields).
+ * Output script: wrap quote form in a modal popup; on TIRE_FINDER_REQUEST_QUOTE show popup with vehicle + tire summary.
  */
 function tire_fitment_quote_form_footer_script() {
     ?>
+    <style>
+    .tire-finder-quote-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999999; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+    .tire-finder-quote-modal-overlay.is-open { display: flex !important; }
+    .tire-finder-quote-modal-content { background: #fff; padding: 24px; border-radius: 8px; max-width: 520px; width: 100%; max-height: 90vh; overflow: auto; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); position: relative; }
+    .tire-finder-quote-modal-close { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 24px; line-height: 1; cursor: pointer; color: #6b7280; padding: 4px; }
+    .tire-finder-quote-modal-close:hover { color: #111; }
+    .tire-finder-quote-summary { margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; font-size: 0.9375rem; }
+    </style>
     <script>
     (function() {
+        function getQuoteFormId() {
+            var embed = document.querySelector('.tire-fitment-embed');
+            return embed ? embed.getAttribute('data-quote-form-id') || 'tire-finder-quote-form' : 'tire-finder-quote-form';
+        }
+        function openModal() {
+            var overlay = document.getElementById('tire-finder-quote-modal-overlay');
+            if (overlay) overlay.classList.add('is-open');
+        }
+        function closeModal() {
+            var overlay = document.getElementById('tire-finder-quote-modal-overlay');
+            if (overlay) overlay.classList.remove('is-open');
+        }
+        function initModal() {
+            var id = getQuoteFormId();
+            var el = document.getElementById(id);
+            if (!el || document.getElementById('tire-finder-quote-modal-overlay')) return;
+            var overlay = document.createElement('div');
+            overlay.id = 'tire-finder-quote-modal-overlay';
+            overlay.className = 'tire-finder-quote-modal-overlay';
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('role', 'dialog');
+            var content = document.createElement('div');
+            content.className = 'tire-finder-quote-modal-content';
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'tire-finder-quote-modal-close';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.setAttribute('aria-label', 'Close');
+            closeBtn.onclick = closeModal;
+            overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+            content.onclick = function(e) { e.stopPropagation(); };
+            document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+            content.appendChild(closeBtn);
+            el.parentNode.insertBefore(overlay, el);
+            content.appendChild(el);
+            overlay.appendChild(content);
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initModal);
+        } else {
+            initModal();
+        }
         window.addEventListener('message', function(event) {
             if (!event.data || event.data.type !== 'TIRE_FINDER_REQUEST_QUOTE') return;
-            var embed = document.querySelector('.tire-fitment-embed');
-            if (!embed) return;
-            var id = embed.getAttribute('data-quote-form-id');
-            if (!id) return;
+            var id = getQuoteFormId();
             var el = document.getElementById(id);
             if (!el) return;
 
@@ -139,7 +185,6 @@ function tire_fitment_quote_form_footer_script() {
                 summary = document.createElement('div');
                 summary.id = summaryId;
                 summary.className = 'tire-finder-quote-summary';
-                summary.setAttribute('style', 'margin-bottom: 1rem; padding: 1rem; background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; font-size: 0.9375rem;');
                 el.insertBefore(summary, el.firstChild);
             }
             summary.innerHTML = '<strong>Quote for:</strong> ' + (vehicleText || '—') + '<br><strong>Tire size:</strong> ' + (tireText || '—');
@@ -151,9 +196,7 @@ function tire_fitment_quote_form_footer_script() {
                 if (hidden) hidden.value = formDataStr;
             }
 
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            el.setAttribute('tabindex', '-1');
-            el.focus({ preventScroll: true });
+            openModal();
         });
     })();
     </script>

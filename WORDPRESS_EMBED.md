@@ -65,7 +65,7 @@ Your app is already live at **https://online-tire-shop-pro.onrender.com** (or yo
 
 ## Use your own “Request a quote” form (e.g. Fluent Forms)
 
-When the finder is embedded in an **iframe**, clicking **“Request a quote”** inside the finder sends a message to your WordPress page. The page scrolls to your form and **displays the selected vehicle and tire size** in a summary box above the form.
+When the finder is embedded in an **iframe**, clicking **“Request a quote”** inside the finder opens a **popup modal** on your WordPress page with your Fluent Form and a summary of the selected **year, make, model, and tire size**.
 
 **Steps:**
 
@@ -81,9 +81,9 @@ When the finder is embedded in an **iframe**, clicking **“Request a quote”**
    </div>
    ```
 
-3. When the user finds a tire size and clicks **“Request a quote”**, the page scrolls to the form and a **summary box** appears above it showing **Quote for: Year Make Model** and **Tire size: front / rear** (e.g. “2023 AUDI A6” and “245/45R19”).
+3. When the user finds a tire size and clicks **“Request a quote”**, a **popup** opens showing **Quote for: Year Make Model** and **Tire size: front / rear**, with your form below. The user can close the popup with the × button, by clicking outside, or with the Escape key.
 
-**Optional:** Use a different container ID with `quote_form_id="my-quote-form"` in the shortcode, and wrap your form in `<div id="my-quote-form">...</div>`.
+**Optional:** Use a different container ID with `quote_form_id="my-quote-form"` in the shortcode, and wrap your form in `<div id="my-quote-form">[fluentform id="7"]</div>`.
 
 **Optional – include data in form submission:** Add a **Hidden** field in Fluent Form with name `tire_finder_data` (or `tire_finder_vehicle`). The plugin will set its value to the vehicle and tire summary so it is submitted with the form.
 
