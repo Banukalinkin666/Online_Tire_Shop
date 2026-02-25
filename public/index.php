@@ -66,7 +66,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
         <!-- Main Application Container -->
         <div x-data="tireFitmentApp()" x-init="init()">
             <!-- Search Form -->
-            <div class="rounded-lg shadow-md p-6 mb-6" style="background-color:#fedd33" x-show="!showResults">
+            <div class="rounded-lg shadow-md p-6 mb-6 w-full" style="background-color:#fedd33" x-show="!showResults">
                 <!-- Tab Switcher (center aligned) -->
                 <div class="flex flex-wrap justify-center gap-2 border-b mb-6">
                     <button 
@@ -429,10 +429,10 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 </div>
             </div>
 
-            <!-- Results Section -->
+            <!-- Results Section (same width/height as input form) -->
             <div x-show="showResults" class="space-y-6">
                 <!-- Vehicle Info Card -->
-                <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="bg-white rounded-lg shadow-md p-6 min-h-[500px] w-full">
                     <div class="flex justify-between items-start mb-4">
                         <div>
                             <h2 class="text-2xl font-bold text-gray-900">
