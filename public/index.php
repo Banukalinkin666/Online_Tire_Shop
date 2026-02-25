@@ -92,6 +92,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     </button>
                 </div>
 
+                <!-- Form content: fixed min-height so container doesn't resize when switching tabs -->
+                <div class="min-h-[380px]">
                 <!-- VIN Search Form -->
                 <div x-show="searchMode === 'vin'" class="space-y-4">
                     <div>
@@ -267,6 +269,9 @@ require_once __DIR__ . '/../app/bootstrap.php';
                         <span x-show="loading || aiDetecting">AI is processing your query...</span>
                     </button>
                 </div>
+
+                </div>
+                <!-- /Form content min-height wrapper -->
 
                 <!-- Error Message -->
                 <div x-show="errorMessage && !showAddVehicleForm" class="mt-4 bg-red-50 border-l-4 border-red-400 p-4">
