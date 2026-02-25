@@ -470,15 +470,6 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <strong>ℹ️ Note:</strong> Tire sizes were determined using AI. Always verify on your vehicle's tire sidewall or door jamb before purchasing.
                         </p>
                     </div>
-                    <div class="mt-4 pt-4 border-t border-gray-200">
-                        <button
-                            type="button"
-                            @click="openQuoteForm()"
-                            class="w-full sm:w-auto bg-blue-600 text-white py-2.5 px-6 rounded-md hover:bg-blue-700 transition-colors font-medium"
-                        >
-                            Request a quote
-                        </button>
-                    </div>
                 </div>
             </div>
 
