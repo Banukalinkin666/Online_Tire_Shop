@@ -71,22 +71,25 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 <div class="flex flex-wrap justify-center gap-2 border-b mb-6">
                     <button 
                         @click="searchMode = 'vin'" 
-                        :class="searchMode === 'vin' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'"
-                        class="px-4 py-2 font-medium focus:outline-none"
+                        :class="searchMode === 'vin' ? 'border-b-2 border-[#000000]' : ''"
+                        class="px-4 py-2 font-bold focus:outline-none"
+                        style="color:#000000"
                     >
                         Search by VIN
                     </button>
                     <button 
                         @click="searchMode = 'ai'; resetForm()" 
-                        :class="searchMode === 'ai' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-600'"
-                        class="px-4 py-2 font-medium focus:outline-none"
+                        :class="searchMode === 'ai' ? 'border-b-2 border-[#000000]' : ''"
+                        class="px-4 py-2 font-bold focus:outline-none"
+                        style="color:#000000"
                     >
                         🤖 AI Direct Search
                     </button>
                     <button 
                         @click="searchMode = 'ai-natural'; resetForm()" 
-                        :class="searchMode === 'ai-natural' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'"
-                        class="px-4 py-2 font-medium focus:outline-none"
+                        :class="searchMode === 'ai-natural' ? 'border-b-2 border-[#000000]' : ''"
+                        class="px-4 py-2 font-bold focus:outline-none"
+                        style="color:#000000"
                     >
                         💬 AI Natural Language
                     </button>
