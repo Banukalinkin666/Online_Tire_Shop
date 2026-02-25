@@ -46,7 +46,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
         </header>
 
         <!-- Legal Disclaimer -->
-        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-md" x-show="!loading">
+        <div class="border-l-4 border-red-500 p-4 mb-6 rounded-lg shadow-md" style="background-color:#F5F6F7" x-show="!loading">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <svg class="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
@@ -118,7 +118,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     <button 
                         @click="searchByVIN()"
                         :disabled="vinInput.length !== 17 || loading"
-                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                        class="w-full text-white py-2 px-4 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                        style="background-color:#000000"
                     >
                         <span x-show="!loading">Search by VIN</span>
                         <span x-show="loading">Searching...</span>
@@ -213,7 +214,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     <button 
                         @click="searchWithAI()"
                         :disabled="!aiYear || !aiMake || !aiModel || loading || aiDetecting"
-                        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 px-6 rounded-md hover:from-purple-700 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        style="background-color:#000000"
                     >
                         <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -256,7 +258,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     <button 
                         @click="searchWithNaturalLanguage()"
                         :disabled="!naturalLanguageQuery || naturalLanguageQuery.trim().length < 10 || loading || aiDetecting"
-                        class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-6 rounded-md hover:from-indigo-700 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        style="background-color:#000000"
                     >
                         <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
@@ -329,7 +332,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                                 <button 
                                     @click="detectTireSizesWithAI()"
                                     :disabled="loading"
-                                    class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-6 rounded-md hover:from-blue-600 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-md flex items-center justify-center gap-2"
+                                    class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-md flex items-center justify-center gap-2"
+                                    style="background-color:#000000"
                                 >
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -403,7 +407,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <button 
                                 @click="addVehicleToDatabase()"
                                 :disabled="loading || !vehicleToAdd || !vehicleToAdd.front_tire"
-                                class="flex-1 bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                                class="flex-1 text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                                style="background-color:#000000"
                             >
                                 <span x-show="!loading">✓ Add Vehicle & Continue</span>
                                 <span x-show="loading">Adding...</span>
@@ -411,7 +416,8 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <button 
                                 @click="cancelAddVehicle()"
                                 :disabled="loading"
-                                class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                                class="px-4 py-2 rounded-md hover:opacity-90 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors border border-gray-300 text-white"
+                                style="background-color:#000000"
                             >
                                 Cancel
                             </button>
@@ -523,12 +529,14 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             <p x-show="quoteSuccess" class="text-sm text-green-600">Thank you. Your quote request has been submitted.</p>
                             <div class="flex gap-2 pt-2">
                                 <button type="submit" :disabled="quoteSubmitting"
-                                        class="flex-1 bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium">
+                                        class="flex-1 text-white py-2.5 px-4 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+                                        style="background-color:#000000">
                                     <span x-show="!quoteSubmitting">Request a quote</span>
                                     <span x-show="quoteSubmitting">Sending...</span>
                                 </button>
                                 <button type="button" @click="closeQuoteForm()"
-                                        class="px-4 py-2.5 border border-gray-300 rounded-md hover:bg-gray-50 font-medium">
+                                        class="px-4 py-2.5 border border-gray-300 rounded-md text-white hover:opacity-90 font-medium"
+                                        style="background-color:#000000">
                                     Cancel
                                 </button>
                             </div>
