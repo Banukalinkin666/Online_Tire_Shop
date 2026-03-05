@@ -6,7 +6,7 @@
 function tireFitmentApp() {
     return {
         // State
-        searchMode: 'vin', // 'vin', 'ai', or 'ai-natural'
+        searchMode: 'ai', // 'ai' (Direct search), 'ai-natural' (Describe vehicle), 'vin' (Enter vin)
         loading: false,
         showResults: false,
         errorMessage: '',

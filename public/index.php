@@ -67,23 +67,15 @@ require_once __DIR__ . '/../app/bootstrap.php';
         <div x-data="tireFitmentApp()" x-init="init()">
             <!-- Search Form -->
             <div class="rounded-lg shadow-md p-6 mb-6 w-full" style="background-color:#fedd33" x-show="!showResults">
-                <!-- Tab Switcher (center aligned) -->
+                <!-- Tab Switcher: 1. Direct search, 2. Describe vehicle, 3. Enter vin -->
                 <div class="flex flex-wrap justify-center gap-2 border-b mb-6">
-                    <button 
-                        @click="searchMode = 'vin'" 
-                        :class="searchMode === 'vin' ? 'border-b-2 border-[#000000]' : ''"
-                        class="px-4 py-2 font-bold focus:outline-none"
-                        style="color:#000000"
-                    >
-                        Search by VIN
-                    </button>
                     <button 
                         @click="searchMode = 'ai'; resetForm()" 
                         :class="searchMode === 'ai' ? 'border-b-2 border-[#000000]' : ''"
                         class="px-4 py-2 font-bold focus:outline-none"
                         style="color:#000000"
                     >
-                        🤖 AI Direct Search
+                        Direct search
                     </button>
                     <button 
                         @click="searchMode = 'ai-natural'; resetForm()" 
@@ -91,7 +83,15 @@ require_once __DIR__ . '/../app/bootstrap.php';
                         class="px-4 py-2 font-bold focus:outline-none"
                         style="color:#000000"
                     >
-                        💬 AI Natural Language
+                        Describe vehicle
+                    </button>
+                    <button 
+                        @click="searchMode = 'vin'" 
+                        :class="searchMode === 'vin' ? 'border-b-2 border-[#000000]' : ''"
+                        class="px-4 py-2 font-bold focus:outline-none"
+                        style="color:#000000"
+                    >
+                        Enter vin
                     </button>
                 </div>
 
@@ -133,7 +133,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 <div x-show="searchMode === 'ai'" class="space-y-4">
                     <div class="bg-purple-50 border-l-4 border-purple-500 p-4 mb-4 rounded">
                         <p class="text-sm text-purple-800">
-                            <strong>🤖 AI Direct Search:</strong> Select your vehicle details from the database and get instant tire size detection using AI.
+                            Select your vehicle details from the database and get instant tire size detection.
                         </p>
                     </div>
                     
@@ -217,17 +217,10 @@ require_once __DIR__ . '/../app/bootstrap.php';
                     <button 
                         @click="searchWithAI()"
                         :disabled="!aiYear || !aiMake || !aiModel || loading || aiDetecting"
-                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg"
                         style="background-color:#000000"
                     >
-                        <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                        </svg>
-                        <svg x-show="loading || aiDetecting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span x-show="!loading && !aiDetecting">🤖 Find Tire Sizes with AI</span>
+                        <span x-show="!loading && !aiDetecting">Find Tire Sizes</span>
                         <span x-show="loading || aiDetecting">AI is detecting tire sizes...</span>
                     </button>
                 </div>
@@ -236,8 +229,7 @@ require_once __DIR__ . '/../app/bootstrap.php';
                 <div x-show="searchMode === 'ai-natural'" class="space-y-4">
                     <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 mb-4 rounded">
                         <p class="text-sm text-indigo-800">
-                            <strong>💬 AI Natural Language Search:</strong> Ask about tire sizes in plain English! 
-                            Example: "What tire sizes fit my 2018 honda civic with 16 wheels"
+                            Ask about tire sizes in plain English! Example: "What tire sizes fit my 2018 honda civic with 16 wheels"
                         </p>
                     </div>
                     
@@ -254,24 +246,17 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             :disabled="loading || aiDetecting"
                         ></textarea>
                         <p class="mt-1 text-sm text-gray-500">
-                            💡 Tip: Include the year, make, model, and wheel size (if known) for best results
+                            Tip: Include the year, make, model, and wheel size (if known) for best results
                         </p>
                     </div>
 
                     <button 
                         @click="searchWithNaturalLanguage()"
                         :disabled="!naturalLanguageQuery || naturalLanguageQuery.trim().length < 10 || loading || aiDetecting"
-                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg flex items-center justify-center gap-2"
+                        class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-lg"
                         style="background-color:#000000"
                     >
-                        <svg x-show="!loading && !aiDetecting" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                        </svg>
-                        <svg x-show="loading || aiDetecting" class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span x-show="!loading && !aiDetecting">💬 Find Tire Sizes with AI</span>
+                        <span x-show="!loading && !aiDetecting">Find Tire Sizes</span>
                         <span x-show="loading || aiDetecting">AI is processing your query...</span>
                     </button>
                 </div>
@@ -331,16 +316,13 @@ require_once __DIR__ . '/../app/bootstrap.php';
                             
                             <!-- AI Detection Button (when tire sizes not available) -->
                             <div x-show="vehicleToAdd && !vehicleToAdd.ai_front_tire && !aiDetecting" class="mt-4 pt-4 border-t border-blue-100">
-                                <p class="text-sm font-semibold text-gray-700 mb-2">🤖 Need help finding tire sizes?</p>
+                                <p class="text-sm font-semibold text-gray-700 mb-2">Need help finding tire sizes?</p>
                                 <button 
                                     @click="detectTireSizesWithAI()"
                                     :disabled="loading"
-                                    class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-md flex items-center justify-center gap-2"
+                                    class="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all font-medium shadow-md"
                                     style="background-color:#000000"
                                 >
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                                    </svg>
                                     <span>Detect Tire Sizes with AI</span>
                                 </button>
                                 <p class="text-xs text-gray-500 mt-2 text-center">Our AI will analyze your vehicle and suggest the correct tire sizes</p>
